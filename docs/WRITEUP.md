@@ -52,12 +52,29 @@ results bounded. The regex is the friendly error; the actual enforcement is the 
 connection running with `enable_external_access=false`, so `read_csv('/etc/passwd')` fails
 at the engine. Defence in depth, because a regex over SQL is not a parser.
 
+**Surviving bad input.** Every file is loaded in isolation. The failure that ends a live
+demo is somebody dropping in their own truncated export and getting a traceback that takes
+the other four files with it, so a bad file produces a plain-English note naming that file
+and the rest still load. pandas exceptions get translated on the way out: `ParserError`
+becomes "malformed CSV (unclosed quote, or rows with differing column counts)".
+
 **Self-repair.** On a query error the engine feeds DuckDB's own message back to the model
 for exactly one retry, and labels the answer as repaired. One retry, not a loop — a second
 failure is a signal to show the human the error, not to keep spending tokens.
 
 And the small one that matters most in a live demo: the **SQL is editable and re-runnable**
 under every answer. It turns the app from something you trust into something you check.
+
+## The number that makes the case
+
+A million rows of the same messy shape: 8.7s to ingest, clean and profile; 0.01s per query;
+and a prompt of **561 characters** — the same 561 characters the 900-row sample produces.
+Putting those rows in a prompt instead would be roughly 13.6 million tokens, about
+97,000x more, and past every context window at any price. `tests/benchmark.py` reproduces it.
+
+I mention it because it settles the architecture argument with a measurement rather than a
+preference. Rows-in-the-prompt isn't a worse version of this design; for a file like that
+it is not a version that runs.
 
 ## What I'd build next
 

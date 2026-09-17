@@ -80,17 +80,22 @@ DuckDB connection itself runs with `enable_external_access=false`, so
 When a query errors, the engine feeds DuckDB's own error message back to the model for
 exactly one retry and labels the answer as repaired.
 
-**5. Charts from result shape.** The chart type is decided from what came back — one
+**5. Survives bad files.** Each upload is isolated, so one unreadable file doesn't take
+the session down with it — drop four good CSVs and one truncated export and you get four
+tables plus a plain-English note about the fifth ("malformed CSV (unclosed quote, or rows
+with differing column counts)"), not a traceback that loses all five.
+
+**6. Charts from result shape.** The chart type is decided from what came back — one
 number is a metric, date + numeric is a line, few categories is a bar. The model's
 suggestion is used only if it names columns that actually exist in the result.
 
-**6. Declining.** Asked something the data can't answer, the app says what's missing
+**7. Declining.** Asked something the data can't answer, the app says what's missing
 rather than inventing a column.
 
 ## Verifying the answers
 
 ```bash
-python tests/test_engine.py     # 10 assertions: guard, coercion, joins, repair, end-to-end
+python tests/test_engine.py     # 11 assertions: guard, coercion, joins, repair, bad files, e2e
 python tests/test_live.py       # 5 assertions against the real model (skips without a key)
 python tests/ground_truth.py    # the demo answers, recomputed in pandas via a different path
 ```
@@ -114,6 +119,25 @@ the app actually returns; gross figures are in the script.
 All six verified matching on a live run. That the gross and net answers differ — and that
 the difference is *visible* in the SQL rather than hidden in a number — is the whole
 argument for this design.
+
+## Does it actually scale?
+
+The design claim is that the prompt doesn't grow with the data. Measured, not asserted:
+
+```bash
+python tests/benchmark.py 1000000
+```
+
+| | 1,000,000 rows (55 MB) |
+|---|---|
+| Ingest, clean, type-recover, profile | **8.7s** |
+| Query (total / trend / group-by) | **0.00–0.01s** |
+| Prompt sent to the model | **561 chars, ~140 tokens** |
+| The same data as rows in a prompt | ~13,600,000 tokens — **97,476x larger**, and past every context window |
+
+The schema card is the same 561 characters at 1,000,000 rows as at 900. Row count changes
+the answer, never the prompt. The rows-in-the-prompt approach cannot run this file at all,
+at any context length, for any money.
 
 ## Sample data
 

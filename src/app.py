@@ -35,6 +35,7 @@ def state():
     ss = st.session_state
     ss.setdefault("con", engine.connect())
     ss.setdefault("tables", [])
+    ss.setdefault("problems", [])
     ss.setdefault("joins", [])
     ss.setdefault("schema", "")
     ss.setdefault("joins_text", "")
@@ -49,7 +50,7 @@ def state():
 def rebuild(ss, uploads):
     """Reload everything when the set of uploaded files changes."""
     ss.con = engine.connect()
-    ss.tables = profiling.load_files(uploads, ss.con)
+    ss.tables, ss.problems = profiling.load_files(uploads, ss.con)
     ss.joins = profiling.discover_joins(ss.con, ss.tables)
     ss.schema = profiling.schema_text(ss.tables)
     ss.joins_text = profiling.joins_text(ss.joins)
@@ -160,7 +161,7 @@ with st.sidebar:
             ss.signature = signature
     elif ss.signature not in (None, SAMPLES_SIG):
         # the uploader was cleared -- drop everything except a sample session
-        ss.signature, ss.tables, ss.joins, ss.answers = None, [], [], []
+        ss.signature, ss.tables, ss.joins, ss.answers, ss.problems = None, [], [], [], []
 
     samples = sorted((Path(__file__).parent.parent / "data" / "samples").glob("*.*"))
     if samples and not uploads:
@@ -170,6 +171,9 @@ with st.sidebar:
             ss.signature = SAMPLES_SIG
             st.rerun()
         st.caption(" · ".join(f.name for f in samples))
+
+    for problem in ss.problems:
+        st.warning(problem, icon="⚠️")
 
     for table in ss.tables:
         with st.expander(f"{table.name} · {table.rows:,} rows"):

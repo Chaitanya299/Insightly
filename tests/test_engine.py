@@ -96,7 +96,7 @@ def test_column_name_cleaning():
 
 def test_join_discovery_on_fixtures():
     con = engine.connect()
-    tables = profiling.load_files(
+    tables, _ = profiling.load_files(
         [SAMPLES / "sales.csv", SAMPLES / "customers.xlsx", SAMPLES / "products.csv"], con
     )
     assert {t.name for t in tables} == {"sales", "customers", "products"}
@@ -108,6 +108,33 @@ def test_join_discovery_on_fixtures():
     # the schema card must carry types and never leak whole rows
     card = profiling.schema_text(tables)
     assert "order_date" in card and "DATE" in card and "Customer 050" not in card
+
+
+def test_one_bad_file_does_not_kill_the_other_files(tmp=None):
+    """The failure that ends a live demo: someone drops in a file pandas can't read."""
+    import tempfile
+
+    d = Path(tempfile.mkdtemp())
+    (d / "empty.csv").write_bytes(b"")
+    (d / "binary.csv").write_bytes(bytes(range(200)) * 8)
+    (d / "malformed.csv").write_text('name,value\n"unclosed,5\nx,6\n')
+    (d / "headeronly.csv").write_text("col\n")
+
+    con = engine.connect()
+    tables, problems = profiling.load_files(
+        [SAMPLES / "sales.csv", d / "empty.csv", d / "binary.csv",
+         d / "malformed.csv", d / "headeronly.csv", SAMPLES / "customers.xlsx"],
+        con,
+    )
+    # the good files still loaded
+    assert {t.name for t in tables} == {"sales", "customers"}
+    assert con.execute("SELECT count(*) FROM sales").fetchone()[0] == 900
+    # and every bad one was reported in words a non-engineer can act on
+    assert len(problems) == 4, problems
+    joined = " ".join(problems)
+    for expected in ["empty.csv", "binary.csv", "malformed.csv", "headeronly.csv"]:
+        assert expected in joined
+    assert "Traceback" not in joined and "the file is empty" in joined
 
 
 def test_chart_picker_reads_result_shape():
@@ -127,7 +154,7 @@ def test_chart_picker_reads_result_shape():
 
 def test_ask_end_to_end_with_stub_model():
     con = engine.connect()
-    tables = profiling.load_files([SAMPLES / "sales.csv", SAMPLES / "customers.xlsx"], con)
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv", SAMPLES / "customers.xlsx"], con)
     schema, joins = profiling.schema_text(tables), profiling.joins_text(profiling.discover_joins(con, tables))
 
     sql = ("SELECT region, round(sum(amount), 2) AS revenue FROM sales "
@@ -153,7 +180,7 @@ def test_ask_end_to_end_with_stub_model():
 
 def test_self_repair_retries_once_with_the_error():
     con = engine.connect()
-    tables = profiling.load_files([SAMPLES / "sales.csv"], con)
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv"], con)
     schema = profiling.schema_text(tables)
 
     stub = StubLLM(

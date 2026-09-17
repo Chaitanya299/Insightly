@@ -29,7 +29,7 @@ SAMPLES = ROOT / "data" / "samples"
 
 def context():
     con = engine.connect()
-    tables = profiling.load_files(
+    tables, _ = profiling.load_files(
         [SAMPLES / "sales.csv", SAMPLES / "customers.xlsx", SAMPLES / "products.csv"], con
     )
     joins = profiling.discover_joins(con, tables)

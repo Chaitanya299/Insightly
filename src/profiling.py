@@ -188,23 +188,63 @@ def _frames(upload) -> list[tuple[str, pd.DataFrame]]:
     return [("", pd.read_csv(upload))]
 
 
-def load_files(uploads, con) -> list[Table]:
-    """Load uploads into DuckDB `con` and return their profiles."""
+def explain_read_error(exc: Exception) -> str:
+    """Turn a pandas exception into something a non-engineer can act on."""
+    name = type(exc).__name__
+    if name == "EmptyDataError":
+        return "the file is empty"
+    if name == "UnicodeDecodeError":
+        return "this doesn't look like text -- is it really a CSV?"
+    if name == "ParserError":
+        return "malformed CSV (unclosed quote, or rows with differing column counts)"
+    if isinstance(exc, (KeyError, ValueError)) and "sheet" in str(exc).lower():
+        return "the workbook has no readable sheet"
+    return f"{name}: {exc}".strip()[:160]
+
+
+def load_files(uploads, con) -> tuple[list[Table], list[str]]:
+    """Load uploads into DuckDB `con`. Returns (tables, problems).
+
+    Each file is isolated. One unreadable file must not take the session down
+    with it -- somebody dropping their own messy CSV alongside four good ones
+    should get a note about that one file, not a traceback that loses all five.
+    """
     tables: list[Table] = []
+    problems: list[str] = []
     taken: set[str] = set()
     for upload in uploads:
         source = getattr(upload, "name", str(upload)).split("/")[-1]
         stem = re.sub(r"\.[^.]+$", "", source)
-        for suffix, df in _frames(upload):
-            if df.empty:
+        try:
+            frames = _frames(upload)
+        except Exception as exc:
+            problems.append(f"**{source}** skipped -- {explain_read_error(exc)}")
+            continue
+
+        loaded = 0
+        for suffix, df in frames:
+            label = f"{source}{suffix}" if suffix else source
+            if df.empty or not len(df.columns):
+                problems.append(f"**{label}** skipped -- no rows in it")
                 continue
-            df, notes = clean_frame(df)
-            table_name = clean_column_name(stem + suffix, taken)
-            con.register("_staging", df)
-            con.execute(f'CREATE OR REPLACE TABLE "{table_name}" AS SELECT * FROM _staging')
-            con.unregister("_staging")
+            try:
+                df, notes = clean_frame(df)
+                if df.empty:
+                    problems.append(f"**{label}** skipped -- no rows left after dropping empty ones")
+                    continue
+                table_name = clean_column_name(stem + suffix, taken)
+                con.register("_staging", df)
+                con.execute(f'CREATE OR REPLACE TABLE "{table_name}" AS SELECT * FROM _staging')
+                con.unregister("_staging")
+            except Exception as exc:
+                problems.append(f"**{label}** skipped -- {explain_read_error(exc)}")
+                continue
             tables.append(Table(table_name, source, len(df), profile(df), notes))
-    return tables
+            loaded += 1
+
+        if not loaded and not any(source in p for p in problems):
+            problems.append(f"**{source}** skipped -- nothing readable in it")
+    return tables, problems
 
 
 def profile(df: pd.DataFrame) -> list[Column]:
