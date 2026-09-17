@@ -31,10 +31,6 @@ class Column:
     distinct: int
     samples: list
 
-    @property
-    def unique_ratio(self) -> float:
-        return self.distinct
-
 
 @dataclass
 class Table:

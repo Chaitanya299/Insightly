@@ -6,8 +6,6 @@ The model writes SQL. **DuckDB computes the numbers.** The model never sees a si
 data value, so it cannot invent one — and the query behind every answer is shown,
 editable, and re-runnable.
 
-<img width="900" alt="" src="docs/screenshot.png">
-
 ## Quick start
 
 ```bash
@@ -23,7 +21,7 @@ Open http://localhost:8501 and click **Load sample files** in the sidebar, or up
 
 | Layer | Choice | Why |
 |---|---|---|
-| Model | **Llama 3.3 70B** (open weights) via Groq | Strong SQL generation, free tier, ~1s latency. Swap with `GROQ_MODEL`, or point at Ollama — the model only ever returns JSON. |
+| Model | **gpt-oss-120b** (Apache-2.0 open weights) via Groq | Strong SQL generation, free tier, ~1s latency. Swap with `GROQ_MODEL` (`qwen/qwen3.8-27b` also works), or point at Ollama — the model only ever returns JSON. |
 | Compute | **DuckDB** in-memory | Real SQL over the uploaded files. Cross-file questions are joins, not prompt engineering. Handles millions of rows. |
 | Ingestion | **pandas** + openpyxl | Type recovery from messy real-world files. |
 | UI | **Streamlit** + Plotly | Upload, chat and charts without spending the budget on plumbing. |
@@ -37,7 +35,7 @@ upload ─► pandas: clean headers, recover types ─► DuckDB tables (one per
                                                         │
                                             schema card + detected join keys
                                                         │
-question ───────────────────────────────────────────────┴──► Llama 3.3 70B
+question ───────────────────────────────────────────────┴──► gpt-oss-120b
                                                         │
                                           {sql, chart, explanation}
                                                         │
@@ -93,21 +91,29 @@ rather than inventing a column.
 
 ```bash
 python tests/test_engine.py     # 10 assertions: guard, coercion, joins, repair, end-to-end
+python tests/test_live.py       # 5 assertions against the real model (skips without a key)
 python tests/ground_truth.py    # the demo answers, recomputed in pandas via a different path
 ```
 
-`ground_truth.py` exists so the demo can be checked rather than trusted. Ask the app these
-and compare:
+`ground_truth.py` exists so the demo can be checked rather than trusted. It prints two
+columns, because **"revenue" is not one number**: the sample data contains 62 refunded
+orders, and the model consistently chooses to exclude them — a defensible reading, which
+it states in its explanation and which is visible in the SQL. The numbers below are what
+the app actually returns; gross figures are in the script.
 
-| Question | Expected |
-|---|---|
-| What's the total revenue? | $2,109,620.72 |
-| Average order value by region | North $2,497.39, South $2,389.29, East $2,234.18, West $2,228.26 |
-| Revenue by month in 2024 | Jan $66,805.26 · Feb $78,527.01 · Mar $112,328.91 |
-| Top 5 product categories by revenue | Docks $630,789.81, then Laptops, Monitors, Headsets, Keyboards |
-| Compare North vs South revenue | North $566,907.69 · South $621,216.24 |
-| Which customers ordered more than 3 times? | 110 customers |
-| What's our headcount? | declines — not in the data |
+| Question | Expected (net of refunds) | Gross |
+|---|---|---|
+| What's the total revenue? | $1,962,664.00 | $2,109,620.72 |
+| Average order value by region | North $2,481.03 · South $2,437.13 · East $2,221.77 · West $2,196.96 | 2,497.39 / 2,389.29 / 2,234.18 / 2,228.26 |
+| Revenue by month in 2024 | Jan $63,622.72 · Feb $73,209.29 · Mar $108,916.78 | 66,805.26 / 78,527.01 / 112,328.91 |
+| Top 5 product categories | Docks $596,094.98, Monitors, Laptops, Headsets, Keyboards | Docks $630,789.81 (Laptops and Monitors swap) |
+| Compare North vs South | North $503,649.95 · South $599,533.05 | 566,907.69 / 621,216.24 |
+| Customers with >3 orders | 108 | 110 |
+| What's our headcount? | declines — no employee data in these files | — |
+
+All six verified matching on a live run. That the gross and net answers differ — and that
+the difference is *visible* in the SQL rather than hidden in a number — is the whole
+argument for this design.
 
 ## Sample data
 

@@ -211,9 +211,11 @@ if not ss.suggestions and not ss.answers:
 
 if ss.suggestions and not ss.answers:
     st.write("**Try one of these:**")
-    for i, col in enumerate(st.columns(len(ss.suggestions))):
-        if col.button(ss.suggestions[i], key=f"sug_{i}", use_container_width=True):
-            ss.pending = ss.suggestions[i]
+    # two across, not four -- four columns truncate the question to "What is the tot…"
+    for row_start in range(0, len(ss.suggestions), 2):
+        for col, q in zip(st.columns(2), ss.suggestions[row_start : row_start + 2]):
+            if col.button(q, key=f"sug_{q[:40]}", use_container_width=True):
+                ss.pending = q
 
 for idx, answer in enumerate(ss.answers):
     with st.chat_message("user"):
