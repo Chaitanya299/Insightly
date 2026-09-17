@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "data-qa",
+      "runtimeExecutable": ".venv/bin/streamlit",
+      "runtimeArgs": ["run", "src/app.py", "--server.port", "8531", "--server.headless", "true"],
+      "port": 8531
+    }
+  ]
+}
