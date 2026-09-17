@@ -146,6 +146,22 @@ money as `"$1,234.50"`, three date formats in one column), `customers.xlsx` (120
 customers, spaces in headers), `products.csv` (20 SKUs). They join
 `sales.customer_id → customers.id` and `sales.sku → products.sku`.
 
+## Why it is built this way
+
+The decisions that would otherwise look arbitrary are recorded in
+[`docs/decisions/`](docs/decisions/), Nygard-format, one file each:
+
+| | |
+|---|---|
+| [0002](docs/decisions/0002-text-to-sql-over-rows-in-prompt.md) | Generated SQL instead of rows in the prompt, and what that costs |
+| [0003](docs/decisions/0003-containment-not-jaccard-for-join-keys.md) | Why Jaccard is the instinctive scoring choice and the wrong one |
+| [0004](docs/decisions/0004-detect-date-orientation.md) | The date bug where both readings succeed on 100% of rows |
+| [0005](docs/decisions/0005-two-layer-sql-safety.md) | Treating generated SQL as untrusted input, in two layers |
+| [0006](docs/decisions/0006-live-tests-for-prompt-regressions.md) | Why a stubbed model proved nothing about the prompt |
+
+[`docs/architecture.md`](docs/architecture.md) covers module boundaries and the four
+critical paths.
+
 ## Limits
 
 In-memory and single-session — nothing persists across restarts, and there's no auth, so
