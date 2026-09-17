@@ -4,3 +4,10 @@ __pycache__/
 *.pyc
 .DS_Store
 .streamlit/secrets.toml
+
+# local agent tooling, not part of this project
+.claude/
+.rtk/
+.context/
+.claudeignore
+CLAUDE.md
