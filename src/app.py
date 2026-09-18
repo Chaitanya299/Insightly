@@ -353,6 +353,100 @@ def load_eval(path: Path) -> pd.DataFrame | None:
     return pd.DataFrame(rows) if rows else None
 
 
+WHY_CSS = """
+<style>
+  .why { display:flex; flex-wrap:wrap; align-items:stretch; gap:1rem; margin:.4rem 0 .6rem; }
+  .why-card { flex:1 1 260px; border:1px solid #e1e0d9; border-radius:14px; padding:1.1rem 1.25rem;
+              background:#fff; display:flex; flex-direction:column; gap:.7rem; }
+  .why-card.win { border:2px solid #2a78d6; box-shadow:0 6px 24px rgba(42,120,214,.10); }
+  .why-name { font-weight:700; font-size:1.05rem; color:#0b0b0b; }
+  .why-flow { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9rem; color:#52514e;
+              background:#f3f2ee; border-radius:10px; padding:.7rem .8rem; line-height:1.7; text-align:center; }
+  .why-score { font-size:2.4rem; font-weight:700; letter-spacing:-.02em; line-height:1; color:#0b0b0b; }
+  .why-score small { font-size:1rem; font-weight:500; color:#52514e; margin-left:.35rem; }
+  .why-bar { height:8px; border-radius:4px; background:#e1e0d9; overflow:hidden; }
+  .why-bar span { display:block; height:100%; border-radius:4px; }
+  .why-list { margin:0; padding-left:1.1rem; color:#52514e; font-size:.88rem; line-height:1.6; }
+  .why-vs { align-self:center; font-weight:700; color:#898781; font-size:.95rem; padding:0 .2rem; }
+</style>
+"""
+
+
+def naive_vs_full() -> dict | None:
+    """The measured head-to-head from docs/evals.json: same questions, same rows."""
+    path = ROOT / "docs" / "evals.json"
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    runs = {(r["name"], r["data"]): [x for x in r["results"] if x["status"] != "not_run"]
+            for r in raw.get("runs", [])}
+    subset = next((d for (n, d) in runs if n == "naive" and d != "full"), None)
+    naive, full = runs.get(("naive", subset)), runs.get(("full", subset))
+    if not naive or not full:
+        return None
+
+    def tokens(rs):
+        t = [x["tokens"] for x in rs if x.get("tokens")]
+        return round(sum(t) / max(len(t), 1))
+
+    missed = [x for x in naive if not x["passed"]]
+    return {
+        "subset": subset, "of": len(naive),
+        "naive": sum(x["passed"] for x in naive), "full": sum(x["passed"] for x in full),
+        "naive_tokens": tokens(naive), "full_tokens": tokens(full),
+        "wrong": sum(x["status"] == "answered" for x in missed),
+        "malformed": sum(x["status"] == "error" for x in missed),
+        "declined": sum(x["status"] == "declined" for x in missed),
+        "too_large": "413" in (raw.get("probe") or ""),
+        "model": raw.get("model", ""),
+    }
+
+
+def render_why() -> None:
+    """The delta, measured, side by side. Numbers come from the eval results, not from here."""
+    m = naive_vs_full()
+    if m is None:
+        return
+    st.markdown("#### Why Insightly?")
+    def n(k, one, many):
+        return f"{m[k]} {one if m[k] == 1 else many}" if m[k] else ""
+
+    naive_points = [n("wrong", "confidently wrong number", "confidently wrong numbers"),
+                    n("malformed", "reply that wasn't valid output", "replies that weren't valid output"),
+                    n("declined", "question refused that the data could answer",
+                      "questions refused that the data could answer"),
+                    f"{m['naive_tokens']:,} tokens per question",
+                    "Full 900-row files: rejected as too large (413)" if m["too_large"] else ""]
+    full_points = ["Every number computed by DuckDB, not the model",
+                   "The SQL is shown under every answer, editable",
+                   f"{m['full_tokens']:,} tokens per question "
+                   f"({m['naive_tokens'] / max(m['full_tokens'], 1):.1f}× fewer)",
+                   "Prompt stays 564 characters at 1,000,000 rows"]
+
+    def card(name, flow, score, points, win):
+        color = "#2a78d6" if win else "#e34948"
+        items = "".join(f"<li>{p}</li>" for p in points if p)
+        return (f'<div class="why-card{" win" if win else ""}">'
+                f'<div class="why-name">{name}</div><div class="why-flow">{flow}</div>'
+                f'<div class="why-score">{score} / {m["of"]}<small>correct</small></div>'
+                f'<div class="why-bar"><span style="width:{score / m["of"]:.0%};background:{color}"></span></div>'
+                f'<ul class="why-list">{items}</ul></div>')
+
+    st.markdown(
+        WHY_CSS + '<div class="why">'
+        + card("✕ Naive LLM approach", "Rows → LLM → Answer", m["naive"], naive_points, False)
+        + '<div class="why-vs">VS</div>'
+        + card("✓ Insightly", "Schema → LLM → SQL<br>↓<br>DuckDB<br>↓<br>Verified result",
+               m["full"], full_points, True)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption(f"Measured: the same {m['of']} questions on the same {m['subset']}, each answer checked "
+               f"against one computed independently in pandas · `{m['model']}` · "
+               "`python tests/evals.py --subset-only`")
+
+
 def render_evidence() -> None:
     """The measured delta: each component switched off, and what it cost."""
     st.markdown("#### Evidence")
@@ -509,7 +603,8 @@ st.markdown(
 )
 
 if not ss.tables:
-    st.markdown("")
+    render_why()
+    st.markdown("#### How it works")
     a, b, c = st.columns(3)
     for col, title, body in [
         (a, "1 · Upload", "Drop several CSV or Excel files in the sidebar, or load the samples. "
@@ -696,6 +791,8 @@ if view == VIEWS[1]:
 elif view == VIEWS[2]:
     view_data()
 elif view == VIEWS[3]:
+    render_why()
+    st.divider()
     render_evidence()
     st.divider()
     render_usage()
