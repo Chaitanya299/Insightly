@@ -2,11 +2,12 @@
 
 Live app: https://insightly0.streamlit.app
 
-`[SCREEN]` is what to show. The quoted lines are what to say. Speak at your own pace;
-the timings are a guide.
+`[SCREEN]` is what to show. The quoted text is what to say. It's written the way you'd
+explain it to a colleague sitting next to you, so don't read it word for word; use it as
+a guide and say it in your own words.
 
-**Before recording:** open the app on a laptop-width window (about 1,300px or wider) and let
-it wake up. Free Streamlit apps sleep, so the first load can take 30 seconds. Have these
+**Before recording:** open the app in a laptop-width window and let it wake up. Free
+Streamlit apps go to sleep, so the first load can take about 30 seconds. Keep these three
 questions ready to paste:
 1. `Average order value by region`
 2. `Revenue by month in 2024`
@@ -14,127 +15,142 @@ questions ready to paste:
 
 ---
 
-## 1. The problem (0:00–0:35)
+## 1. The problem (0:00–0:40)
 
 `[SCREEN]` The Upload page, scrolled down to **Why Insightly?**
 
-> "Hi, I'm Chaitanya. This is Insightly: you upload CSV or Excel files and ask questions
-> about them in plain English.
+> "Hi, I'm Chaitanya, and this is Insightly. The idea is simple: you upload a few CSV or
+> Excel files and ask questions about them in plain English, the way you'd ask an analyst.
 >
-> The obvious way to build this is to paste the spreadsheet into the prompt and ask the
-> model. I measured that. On the same 20 questions it gets 10 right. It does arithmetic in
-> its head, it can't hold a real file, and on the full 900-row sample the API rejects the
-> request as too large.
+> When I started, the first thing I tried was the approach most people reach for, which is
+> to paste the spreadsheet into the prompt and let the model answer. I wanted to know how
+> well that actually works, so I wrote 20 questions, worked out the correct answers
+> separately, and tested it. It got about half of them right. When I looked at the misses,
+> the model was doing the arithmetic itself and getting it wrong, and with the full 900-row
+> file the request didn't even go through because it was too large for the API.
 >
-> So I split the job. The model only writes SQL. DuckDB, a real analytical database, runs it
-> and computes every number. Same questions: 20 out of 20, at a quarter of the tokens."
+> So I changed who does what. The model's only job is to turn your question into a SQL
+> query. The query then runs in DuckDB, which is an analytical database, and that's what
+> produces every number you see. With that change the same 20 questions all came back
+> correct, and each question used about a quarter of the tokens."
 
-## 2. Upload: messy files in, clean tables out (0:35–1:20)
+## 2. Upload: making messy files usable (0:40–1:30)
 
-`[SCREEN]` Scroll up. Click **Load sample files**. Point at the three file cards.
+`[SCREEN]` Scroll up, click **Load sample files**, then point at the three file cards.
 
-> "Here are three related files: sales, customers and products. They're deliberately messy,
-> like real exports.
+> "I'll load some sample data. These are three related files: sales, customers and products.
+> I made them messy on purpose, because real exports usually are.
 >
-> Each file becomes a table. Look at what was cleaned. Amounts like `$1,234.50` were text,
-> and now they're numbers. The order dates mixed three formats, and the app worked out they
-> were day-first.
+> Each file becomes a table, and the card tells you what had to be fixed. The amounts came
+> in as text with dollar signs and commas, so they've been converted to numbers. The order
+> dates were in three different formats, and the app has worked out that they're day-first.
 >
-> That date detail matters more than it looks. `03/05/2024` is either 3 May or 5 March, and
-> both readings parse without any error. A naive parser picks one silently and every monthly
-> number is wrong. Insightly looks at the dates that *can't* be ambiguous, like the 20th of
-> May, and uses them to decide.
+> That date part is worth a moment, because it's the kind of bug nobody notices. A date like
+> 03/05/2024 could be the 3rd of May or the 5th of March, and either reading is perfectly
+> valid, so there's no error to warn you. If a tool guesses wrong, every monthly total is
+> off and you'd never know. What Insightly does is look at the dates that can only be read
+> one way, like the 20th of May, and use those to decide how to read the rest.
 >
-> It also found how the files connect: `sales.customer_id` matches `customers.id`. It found
-> that by comparing values, not just column names, which is what makes cross-file questions
-> work."
+> Down here it also shows how the files connect: the customer ID in sales matches the ID in
+> customers. It finds that by comparing the actual values in the columns rather than trusting
+> the column names, and that's what lets one question pull from more than one file."
 
-## 3. Ask: a verified answer you can check (1:20–2:30)
+## 3. Ask: an answer you can check (1:30–2:40)
 
-`[SCREEN]` Click **02 Ask**. Paste `Average order value by region`.
+`[SCREEN]` Click **02 Ask** and paste `Average order value by region`.
 
-> "Let's ask something that needs two files: average order value by region. Region lives in
-> customers, amounts live in sales.
+> "Let me ask something that needs two of those files: the average order value by region.
+> The region is stored with the customers, but the order amounts are in sales, so it has to
+> join them.
 >
-> The answer comes back as a chart and a table, with a green stamp: *verified, computed by
-> DuckDB*. That stamp is the product's promise. The model never saw these rows; it only saw
-> the column names and types.
+> I get a chart and a table, and there's a small green label saying the result was computed
+> by DuckDB. That matters to me because the model never saw these rows at all. It only saw
+> the column names, their types and a few example values, and it wrote a query.
 >
-> And this line: *uses the agreed definition of average order value.* Revenue here means
-> completed orders only, not refunds. That's the customer's decision, not the model's
-> guess."
+> There's also a line saying it used the agreed definition of average order value, which
+> here means completed orders only, with refunds left out. That's a business decision, and
+> I didn't want the model making it differently each time someone asks."
 
-`[SCREEN]` Open the **SQL** expander.
+`[SCREEN]` Open the **SQL** section.
 
-> "Here's the exact query. You can edit it and re-run it, and the chart updates. As an FDE
-> this is what I'd want in front of a customer: when a number is questioned, you don't argue
-> with a chatbot, you read the SQL."
+> "And this is the exact query that produced the answer. You can change it and run it again
+> right here. When I picture putting this in front of a customer, this is the part I care
+> about most: if someone doubts a number, they can read how it was calculated instead of
+> just taking the AI's word for it."
 
 `[SCREEN]` Paste `What is our employee headcount?`
 
-> "And when the data can't answer, it says so. There's no employee table, so it declines
-> instead of inventing an answer from the customer list. A confident answer to the wrong
-> question is the worst failure for a tool like this."
+> "Now something the data can't answer. There's nothing about employees in these files, and
+> it tells me that plainly. An early version of this actually answered by counting
+> customers, which is exactly the kind of confident wrong answer I wanted to rule out."
 
-## 4. Dashboard: no model involved (2:30–3:05)
+## 4. Dashboard: no AI involved (2:40–3:15)
 
-`[SCREEN]` Click **03 Dashboard**. Change **Break down by** to `region`.
+`[SCREEN]` Click **03 Dashboard**, then change **Break down by** to `region`.
 
-> "The dashboard is built from rules, with no model call: headline revenue, latest month
-> against the one before, the monthly trend, and a breakdown. Region comes from the customers
-> file through the join we saw earlier.
+> "The dashboard is built without the model at all. It picks the main numbers from the data
+> using simple rules: total revenue, how the latest month compares with the one before, the
+> trend over time, and a breakdown I can change. Here I'm breaking it down by region, which
+> again comes from the customers file through that link we saw earlier.
 >
-> It uses the same agreed definition of revenue, so the dashboard and the chat can never
-> disagree on what 'revenue' means. Every query behind it is one click away."
+> It uses the same definition of revenue as the chat, so the two can't give you different
+> numbers for the same thing. The queries behind it are listed at the bottom if you want to
+> check them."
 
-## 5. Data: what you uploaded, and the rules it follows (3:05–3:50)
+## 5. Data: checking the upload and setting the rules (3:15–4:00)
 
-`[SCREEN]` Click **04 Data**. Point at the `region` row, then scroll to **Agreed definitions**.
+`[SCREEN]` Click **04 Data**, point at the `region` row, then scroll to **Agreed definitions**.
 
-> "This page answers 'was my file read correctly?' before you trust any answer. Each column
-> gets a small picture: rows per month for dates, the spread for numbers, and the most common
-> values with their share for categories. You'd spot a missing month or a broken column here
-> first.
+> "This page is about confidence in the input. For every column there's a small picture and
+> a short description: for dates it's how many rows fall in each month, for numbers it's how
+> the values are spread out, and for categories it's which values are most common and their
+> share. If a month were missing or a column had been read wrongly, this is where you'd
+> notice before trusting any answer.
 >
-> Below are the agreed definitions. A word like *revenue* can mean gross, net of refunds, or
-> net of discounts. This is where the business fixes it once, as a SQL formula plus a
-> plain-English meaning. You can edit them right here, and every formula is test-run against
-> the data and through the same safety check before it's saved."
+> Further down are the agreed definitions. A word like 'revenue' can mean gross sales,
+> sales after refunds, or sales after discounts, and different teams often mean different
+> things. This is where the business writes down which one it means, as a formula plus a
+> plain-English explanation. You can edit them here, and before anything is saved the app
+> runs the formula against the data to make sure it actually works."
 
-## 6. Quality: proof, not claims (3:50–4:40)
+## 6. Quality: how I know it works (4:00–4:45)
 
-`[SCREEN]` Click **05 Quality**. Show the comparison, then the ablation chart.
+`[SCREEN]` Click **05 Quality**. Show the comparison, then the chart below it.
 
-> "This is how I know each part earns its place. I wrote questions whose answers I computed
-> separately in pandas, then switched off one component at a time.
+> "I didn't want to just claim each piece is useful, so I tested it. I took my question set,
+> switched off one part at a time, and counted what broke.
 >
-> Without number cleaning, 4 answers go wrong. Without date detection, the same 4 go wrong,
-> and silently: the model still answers, confidently, with the wrong month.
+> Without the number cleaning, four answers went wrong. Without the date detection, the same
+> four went wrong, and that one worries me more, because the model still answered them
+> confidently; it was just using the wrong months.
 >
-> I also built a harder set, designed to break things: confusing key names, codes like `EMEA`
-> and `CXL`, and a financial year starting in April. The full system gets 17 out of 17.
-> Without the agreed definitions it drops to 12.
->
-> And the honest part: on the easy data, some components made no difference, and the report
-> says so rather than hiding it."
+> The sample data turned out to be too easy for some parts, so I built a second, harder set
+> meant to trip things up: columns with misleading names, codes like EMEA instead of
+> 'Europe', and a financial year that starts in April. The full system got all 17 right.
+> Without the agreed definitions it dropped to 12. I've also kept the results where
+> switching something off made no difference, because I'd rather show that than overstate
+> what each part does."
 
-## 7. Safety, limits and what's next (4:40–5:15)
+## 7. Safety, limits and what I'd do next (4:45–5:20)
 
-`[SCREEN]` Stay on Quality, or go back to the Upload page.
+`[SCREEN]` Stay on Quality or go back to Upload.
 
-> "On safety: generated SQL is treated as untrusted input. It must be a single read-only
-> query, and the database itself runs with file access switched off, so even a query that
-> slipped past my check can't read the disk.
+> "On safety, I treat the query the model writes as something that can't be trusted. It's
+> only allowed to read data, one query at a time, and the database itself is set up so it
+> can't open files on the machine. So even if a bad query slipped past my check, it still
+> couldn't do any damage.
 >
-> Limits: it's single-user with no login, the free API allows about five questions a minute,
-> and a few sample values do reach the model unless privacy mode is on.
+> There are some honest limits. It's built for one person at a time with no login, the free
+> API tier handles about five questions a minute, and a few example values from each column
+> are sent to the model unless you switch on privacy mode.
 >
-> Next, I'd build the eval set *with* the customer, on their real data, because that's the
-> only honest answer to 'does it work for us?' Thanks for watching."
+> If I were taking this to a real customer, the first thing I'd do is build the test set
+> with them, using their own data and the questions they actually ask, because that's the
+> only real way to answer 'will this work for us?' Thanks for watching."
 
 ---
 
-## If you're short on time (2-minute cut)
+## Short version (about 2 minutes)
 
-Keep sections 1, 3 and 6. Say the 10-vs-20 result, show one verified answer with its SQL and
-the headcount decline, then show the Quality page.
+Use sections 1, 3 and 6. Explain the half-right result from pasting data into the prompt,
+show one answer with its SQL and the headcount question, then finish on the Quality page.
