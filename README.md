@@ -148,6 +148,10 @@ matches the definition, and the category values are spelled the obvious way. Tho
 components guard against data this set doesn't contain yet. That is a gap in the eval set,
 reported rather than hidden.
 
+Re-run on the current system with `gpt-oss-20b` (the hard suite's model), the pattern
+holds: full 20/20, type recovery and date detection each −4, definitions −1, the rest ±0
+([`docs/evals-current.md`](docs/evals-current.md)).
+
 **The naive baseline** (CSV text pasted into the prompt) can't run on these files at all:
 Groq rejects the request as too large (`413`). So it gets its best case, a 100-row subset,
 and the full system answers the same 20 questions on the same rows:

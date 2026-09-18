@@ -27,6 +27,7 @@ graph LR
 - Privacy mode (`SEND_SAMPLES=false`), per-question JSONL trace with an in-app panel
 - Eval harness with ablation: every component scored by what breaks without it
 - Naive vs full on a 100-row subset (gpt-oss-120b): naive 10/20, full 20/20, 4x the tokens
+- Sample suite re-run on the current system (gpt-oss-20b): same result, `docs/evals-current.md`
 - Hard eval suite (17 questions, mismatched keys, non-obvious definitions, coded categories):
   full 17/17, no definitions 12/17, privacy 13/17, privacy without join hints 10/17
   (`docs/evals-hard.md`, gpt-oss-20b via FreeLLMAPI)
@@ -37,9 +38,6 @@ graph LR
 Nothing.
 
 ## Blocked
-Sample suite numbers (`docs/evals.md`) predate the category-values and join-discovery
-changes. Re-run on Groq once the new key is in: `python tests/evals.py`.
-
 Codex second-opinion review — the ChatGPT account's Codex quota is exhausted until
 2026-09-28. It read every source file, then hit the limit before producing findings.
 The review in this repo is therefore self-review, not cross-model.
