@@ -102,13 +102,18 @@ def detect_dayfirst(txt: pd.Series) -> bool | None:
     return None
 
 
-def coerce_datetime(s: pd.Series) -> tuple[pd.Series | None, str | None]:
+def coerce_datetime(
+    s: pd.Series, detect_orientation: bool = True
+) -> tuple[pd.Series | None, str | None]:
     """Mixed-format date strings -> datetime64, plus a note if anything was ambiguous.
 
     Parsed in two passes because one global `dayfirst` flag cannot describe a
     column holding both `20/05/2024` and `2024-11-02` -- pandas would flip the
     ISO row too. Short slash/dash dates get the detected orientation; everything
     else is parsed on its own terms.
+
+    `detect_orientation=False` is the naive single-pass parse, kept so the eval
+    harness can measure what the detection is worth.
     """
     if not pd.api.types.is_object_dtype(s) and not pd.api.types.is_string_dtype(s):
         return None, None
@@ -120,6 +125,13 @@ def coerce_datetime(s: pd.Series) -> tuple[pd.Series | None, str | None]:
     # get swallowed by the parser and a category column silently becomes a date.
     if float((txt.str.len() >= 6).mean()) < COERCE_THRESHOLD:
         return None, None
+
+    if not detect_orientation:
+        try:
+            out = pd.to_datetime(txt, errors="coerce", format="mixed")
+        except (ValueError, TypeError):
+            return None, None
+        return (out, None) if int(out.notna().sum()) / non_null >= COERCE_THRESHOLD else (None, None)
 
     is_short = txt.str.match(_SHORT_DATE).fillna(False)
     dayfirst = detect_dayfirst(txt)
@@ -146,8 +158,14 @@ def coerce_datetime(s: pd.Series) -> tuple[pd.Series | None, str | None]:
     return out, note
 
 
-def clean_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
-    """Normalise headers and recover real types. Returns (df, human notes)."""
+def clean_frame(
+    df: pd.DataFrame, recover_types: bool = True, detect_orientation: bool = True
+) -> tuple[pd.DataFrame, list[str]]:
+    """Normalise headers and recover real types. Returns (df, human notes).
+
+    The two flags exist for the eval harness's ablation runs; the app always
+    leaves them on.
+    """
     notes: list[str] = []
     taken: set[str] = set()
     renames = {}
@@ -160,13 +178,16 @@ def clean_frame(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     df = df.loc[:, ~df.columns.duplicated()]
     df = df.dropna(axis=0, how="all").dropna(axis=1, how="all")
 
+    if not recover_types:
+        return df, notes
+
     for col in df.columns:
         num = coerce_numeric(df[col])
         if num is not None:
             df[col] = num
             notes.append(f"`{col}` text -> number")
             continue
-        dt, dt_note = coerce_datetime(df[col])
+        dt, dt_note = coerce_datetime(df[col], detect_orientation)
         if dt is not None:
             df[col] = dt
             notes.append(f"`{col}` text -> date" + (f" ({dt_note})" if dt_note else ""))
@@ -205,7 +226,9 @@ def explain_read_error(exc: Exception) -> str:
     return f"{name}: {exc}".strip()[:160]
 
 
-def load_files(uploads, con) -> tuple[list[Table], list[str]]:
+def load_files(
+    uploads, con, *, recover_types: bool = True, detect_orientation: bool = True
+) -> tuple[list[Table], list[str]]:
     """Load uploads into DuckDB `con`. Returns (tables, problems).
 
     Each file is isolated. One unreadable file must not take the session down
@@ -231,7 +254,7 @@ def load_files(uploads, con) -> tuple[list[Table], list[str]]:
                 problems.append(f"**{label}** skipped -- no rows in it")
                 continue
             try:
-                df, notes = clean_frame(df)
+                df, notes = clean_frame(df, recover_types, detect_orientation)
                 if df.empty:
                     problems.append(f"**{label}** skipped -- no rows left after dropping empty ones")
                     continue
@@ -419,11 +442,14 @@ def _overlap(con, ta: str, ca: str, tb: str, cb: str, sample: int = 5000) -> flo
 # prompt rendering
 # --------------------------------------------------------------------------
 
-def schema_text(tables: list[Table]) -> str:
+def schema_text(tables: list[Table], samples: bool = True) -> str:
     """The compact schema card handed to the model.
 
     Rows never appear here, but three sample values per column do, and they
     leave the machine with the prompt. Not the whole dataset -- but not nothing.
+    `samples=False` is privacy mode: names and types only, no data values at all.
+    The cost is real -- without samples the model has to guess that a status is
+    spelled 'Completed' -- and the eval harness measures it.
     """
     out = []
     for t in tables:
@@ -433,8 +459,10 @@ def schema_text(tables: list[Table]) -> str:
             bits = [f"distinct={c.distinct}"]
             if c.nulls_pct:
                 bits.append(f"nulls={c.nulls_pct}%")
-            samples = ", ".join(c.samples)
-            out.append(f"  {c.name:<{width}}  {c.dtype:<8} {' '.join(bits):<22} e.g. {samples}")
+            line = f"  {c.name:<{width}}  {c.dtype:<8} {' '.join(bits):<22}"
+            if samples:
+                line += f" e.g. {', '.join(c.samples)}"
+            out.append(line.rstrip())
         out.append("")
     return "\n".join(out)
 

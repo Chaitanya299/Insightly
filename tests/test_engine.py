@@ -32,7 +32,8 @@ class StubLLM:
         self.calls.append(kwargs["messages"])
         body = json.dumps(self.replies.pop(0))
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=body))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content=body))],
+            usage=SimpleNamespace(total_tokens=1000),
         )
 
 
@@ -226,6 +227,85 @@ def test_unanswerable_question_is_declined_not_invented():
     answer = engine.ask("what is our headcount?", engine.connect(), "TABLE sales", "", client=stub)
     assert answer.sql is None and answer.df is None and answer.error is None
     assert "headcount" in answer.explanation.lower()
+
+
+def test_metric_definitions_only_offered_when_the_upload_can_satisfy_them():
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv"], con)
+    metrics = engine.load_metrics(ROOT / "config" / "metrics.toml", tables)
+    assert "revenue" in {m["name"] for m in metrics}
+    # the agreed expression must produce the agreed number
+    revenue = next(m for m in metrics if m["name"] == "revenue")
+    value = con.execute(f'SELECT {revenue["expression"]} FROM sales').fetchone()[0]
+    assert round(float(value), 2) == 1962664.00
+
+    # no sales table -> no sales definitions, rather than an invitation to invent columns
+    only_customers, _ = profiling.load_files([SAMPLES / "customers.xlsx"], engine.connect())
+    assert engine.load_metrics(ROOT / "config" / "metrics.toml", only_customers) == []
+    assert engine.load_metrics(ROOT / "config" / "missing.toml", tables) == []
+
+
+def test_metrics_reach_the_prompt_and_invented_names_are_dropped():
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv"], con)
+    metrics = engine.load_metrics(ROOT / "config" / "metrics.toml", tables)
+    stub = StubLLM({
+        "sql": "SELECT SUM(amount) FILTER (WHERE status = 'Completed') AS revenue FROM sales",
+        "explanation": "Net revenue.",
+        "metrics_used": ["revenue", "definition_the_model_made_up"],
+    })
+    answer = engine.ask("total revenue", con, profiling.schema_text(tables), "",
+                        client=stub, metrics=metrics)
+    assert "BUSINESS DEFINITIONS" in stub.calls[0][1]["content"]
+    assert answer.metrics_used == ["revenue"]
+    assert answer.tokens == 1000 and answer.latency_ms >= 0
+
+
+def test_privacy_mode_sends_no_data_values():
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv", SAMPLES / "customers.xlsx"], con)
+    private = profiling.schema_text(tables, samples=False)
+    assert "order_date" in private and "DATE" in private      # structure still there
+    for value in ["Completed", "Refunded", "Customer 0", "North", "2016.31"]:
+        assert value not in private, value                     # but no values at all
+    assert "Completed" in profiling.schema_text(tables)        # and normal mode keeps them
+
+
+def test_trace_log_records_what_ran_but_not_the_data():
+    import tempfile
+
+    path = Path(tempfile.mkdtemp()) / "logs" / "queries.jsonl"
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv"], con)
+    stub = StubLLM({"sql": "SELECT customer_id, amount FROM sales LIMIT 3", "explanation": ""})
+    answer = engine.ask("a few orders", con, profiling.schema_text(tables), "", client=stub)
+    engine.log_answer(answer, path)
+    engine.log_answer(engine.Answer("headcount?", explanation="no employee data"), path)
+    with open(path, "a") as fh:
+        fh.write("{half a line from a crash")
+
+    records = engine.read_log(path)
+    assert [r["status"] for r in records] == ["ok", "declined"]   # corrupt line skipped
+    assert records[0]["rows"] == 3 and records[0]["sql"].startswith("SELECT")
+    raw = path.read_text()
+    first_amount = str(answer.df["amount"].iloc[0])
+    assert first_amount not in raw, "result values must never be written to the trace"
+
+
+def test_ablation_switches_really_switch_the_component_off():
+    """The eval harness is only honest if 'off' means off."""
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv"], con, recover_types=False)
+    types = {c.name: c.dtype for c in tables[0].columns}
+    assert types["amount"] == "TEXT" and types["order_date"] == "TEXT"
+
+    # 03/05/2024 in a column that also holds 20/05/2024 is 3 May. The naive parse
+    # reads it as 5 March -- the silent error the detection exists to prevent.
+    col = pd.Series(["20/05/2024", "03/05/2024", "2024-11-02"])
+    naive, _ = profiling.coerce_datetime(col, detect_orientation=False)
+    smart, _ = profiling.coerce_datetime(col)
+    assert naive.iloc[1].month == 3 and smart.iloc[1].month == 5
+    assert naive.iloc[2] == smart.iloc[2]  # ISO rows agree either way
 
 
 if __name__ == "__main__":

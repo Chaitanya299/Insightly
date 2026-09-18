@@ -114,19 +114,42 @@ different orders on one screen reads as a bug.
 **8. Declining.** Asked something the data can't answer, the app says what's missing
 rather than inventing a column.
 
+## Running it for a customer
+
+Three things a real deployment needs that a demo does not:
+
+**Agreed definitions.** `config/metrics.toml` holds the customer's meaning of terms like
+"revenue": the exact SQL expression and a plain-English description. The model is told to
+use them verbatim, and each answer names the definition it applied (*"Uses the agreed
+definition of **revenue**: net of refunds"*). A definition is only offered when its table
+and columns exist in the upload. The meaning of "revenue" becomes something the customer
+sets once, in a file, instead of something the model re-decides every question.
+See [ADR 0007](docs/decisions/0007-business-definitions-as-configuration.md).
+
+**Privacy mode.** `SEND_SAMPLES=false` strips sample values from the schema card, so
+only column names and types leave the machine. It costs accuracy — the model has to guess
+that a status is spelled `'Completed'` — and [`docs/evals.md`](docs/evals.md) measures how
+much, so the trade can be made knowingly.
+
+**A trace of every question.** One JSONL line per question in `logs/queries.jsonl`: the
+SQL that ran, status, row count, definitions used, tokens and latency — never the result
+rows. A "Recent queries" panel shows it in the app. When a customer says yesterday's total
+was wrong, you read the SQL that produced it instead of guessing.
+
 ## Verifying the answers
 
 ```bash
-python tests/test_engine.py     # 11 assertions: guard, coercion, joins, repair, bad files, e2e
+python tests/test_engine.py     # 17 assertions, no API key: guard, coercion, joins, charts,
+                                #   repair, bad files, definitions, privacy, trace, ablation switches
 python tests/test_live.py       # 5 assertions against the real model (skips without a key)
 python tests/ground_truth.py    # the demo answers, recomputed in pandas via a different path
+python tests/evals.py           # the scored ablation study -> docs/evals.md (~30 min on free tier)
 ```
 
 `ground_truth.py` exists so the demo can be checked rather than trusted. It prints two
 columns, because **"revenue" is not one number**: the sample data contains 62 refunded
-orders, and the model consistently chooses to exclude them — a defensible reading, which
-it states in its explanation and which is visible in the SQL. The numbers below are what
-the app actually returns; gross figures are in the script.
+orders. `config/metrics.toml` defines revenue as net of refunds, so that is what the app
+returns and what the table below shows; gross figures are in the script.
 
 | Question | Expected (net of refunds) | Gross |
 |---|---|---|
@@ -158,8 +181,10 @@ python tests/benchmark.py 1000000
 | The same data as rows in a prompt | ~13,600,000 tokens — **97,476x larger**, and past every context window |
 
 The schema card is the same 561 characters at 1,000,000 rows as at 900. Row count changes
-the answer, never the prompt. The rows-in-the-prompt approach cannot run this file at all,
-at any context length, for any money.
+the answer, never the prompt. The rows-in-the-prompt approach would need a prompt about a
+hundred times larger than this model's 131k-token context window. It cannot even run the
+900-row sample: on Groq's free tier the request is rejected before the model sees it
+(`413 Request too large`).
 
 ## Sample data
 
@@ -180,6 +205,7 @@ The decisions that would otherwise look arbitrary are recorded in
 | [0004](docs/decisions/0004-detect-date-orientation.md) | The date bug where both readings succeed on 100% of rows |
 | [0005](docs/decisions/0005-two-layer-sql-safety.md) | Treating generated SQL as untrusted input, in two layers |
 | [0006](docs/decisions/0006-live-tests-for-prompt-regressions.md) | Why a stubbed model proved nothing about the prompt |
+| [0007](docs/decisions/0007-business-definitions-as-configuration.md) | Why "revenue" is the customer's decision, not the model's |
 
 [`docs/architecture.md`](docs/architecture.md) covers module boundaries and the four
 critical paths.
@@ -187,5 +213,7 @@ critical paths.
 ## Limits
 
 In-memory and single-session — nothing persists across restarts, and there's no auth, so
-run it locally or behind one. Uploads are capped at 500MB by Streamlit (DuckDB itself
+run it locally or behind one. On Groq's free tier the whole app shares 8,000 tokens a
+minute; at ~1,500 tokens a question that is about five questions a minute across all
+users, which is the real concurrency ceiling. Uploads are capped at 500MB by Streamlit (DuckDB itself
 would handle far more). Excel formulas are read as their cached values.

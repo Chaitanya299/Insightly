@@ -1,0 +1,27 @@
+# Business definitions.
+#
+# When a question uses one of these terms, the model is told to use this exact
+# expression instead of choosing its own reading. This is where an organisation
+# settles "is revenue net of refunds?" once, rather than letting each answer
+# decide. Edit this file per customer -- no code changes.
+#
+# A metric is only offered to the model when its `table` and every one of its
+# `columns` exist in the current upload; otherwise it is silently left out.
+
+[revenue]
+table = "sales"
+columns = ["amount", "status"]
+expression = "SUM(amount) FILTER (WHERE status = 'Completed')"
+meaning = "Net revenue: completed orders only. Refunded orders are excluded."
+
+[average_order_value]
+table = "sales"
+columns = ["amount", "status"]
+expression = "AVG(amount) FILTER (WHERE status = 'Completed')"
+meaning = "Mean amount per completed order. Refunded orders are excluded."
+
+[refund_rate]
+table = "sales"
+columns = ["status"]
+expression = "AVG(CASE WHEN status = 'Refunded' THEN 1.0 ELSE 0.0 END)"
+meaning = "Share of all orders that were refunded, between 0 and 1."

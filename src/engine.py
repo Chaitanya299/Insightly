@@ -11,7 +11,11 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass, field
+import time
+import tomllib
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 
 import duckdb
 import pandas as pd
@@ -22,16 +26,21 @@ MAX_ROWS = 5000
 SYSTEM = """You are a careful data analyst who answers questions by writing DuckDB SQL.
 
 You are given the SCHEMA of tables loaded from the user's uploaded files, and
-detected join keys between them. You never see the data itself.
+detected join keys between them. You see column names, types and at most a few
+sample values -- never the full rows, and never the result of your query.
 
 Return ONLY a JSON object:
 {
   "sql": "<a single DuckDB SELECT statement, or null if unanswerable>",
   "chart": {"type": "bar|line|scatter|pie|metric", "x": "<column>", "y": "<column>"} or null,
-  "explanation": "<one or two plain sentences about what the query does>"
+  "explanation": "<one or two plain sentences about what the query does>",
+  "metrics_used": ["<name of each BUSINESS DEFINITION you applied>"]
 }
 
 Rules:
+- If BUSINESS DEFINITIONS are given and the question uses one of those terms, use
+  that exact expression -- it is the organisation's agreed meaning, and it overrides
+  your own judgement about filters. List each one you used in "metrics_used".
 - Use ONLY the tables and columns listed in the schema. Never invent a column.
 - Answer the question that was asked, not a nearby one you can answer. A table that
   is superficially similar is not a substitute: `customers` does not answer a question
@@ -66,6 +75,86 @@ class Answer:
     error: str | None = None
     repaired: bool = False
     notes: list[str] = field(default_factory=list)
+    metrics_used: list[str] = field(default_factory=list)
+    tokens: int = 0          # prompt + completion, across the call and any repair
+    latency_ms: int = 0
+
+
+# --------------------------------------------------------------------------
+# business definitions -- the customer's meaning of "revenue", not the model's
+# --------------------------------------------------------------------------
+
+def load_metrics(path, tables) -> list[dict]:
+    """Read metric definitions, keeping only those this upload can satisfy.
+
+    A definition naming a table or column that is not loaded is dropped rather
+    than shown to the model: offering `SUM(amount)` for a file with no `amount`
+    column invites exactly the invented-column failure the guard exists to stop.
+    """
+    path = Path(path)
+    if not path.exists():
+        return []
+    with open(path, "rb") as fh:
+        raw = tomllib.load(fh)
+    have = {t.name: set(t.column_names()) for t in tables}
+    usable = []
+    for name, spec in raw.items():
+        table, cols = spec.get("table"), set(spec.get("columns", []))
+        if table in have and cols <= have[table] and spec.get("expression"):
+            usable.append({"name": name, "table": table,
+                           "expression": spec["expression"], "meaning": spec.get("meaning", "")})
+    return usable
+
+
+def metrics_text(metrics: list[dict]) -> str:
+    if not metrics:
+        return ""
+    lines = ["BUSINESS DEFINITIONS (use exactly when the question uses the term):"]
+    for m in metrics:
+        lines.append(f'  {m["name"]}  (table "{m["table"]}"):  {m["expression"]}')
+        if m["meaning"]:
+            lines.append(f"      -- {m['meaning']}")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# trace log -- so "yesterday's total was wrong" can be answered with the SQL
+# --------------------------------------------------------------------------
+
+def log_answer(answer: "Answer", path) -> None:
+    """Append one JSONL line per question. Never the result rows: the log holds
+    what was asked and what ran, not the customer's data."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "question": answer.question,
+        "sql": answer.sql,
+        "status": ("error" if answer.error else "declined" if not answer.sql
+                   else "repaired" if answer.repaired else "ok"),
+        "error": answer.error,
+        "rows": None if answer.df is None else len(answer.df),
+        "metrics_used": answer.metrics_used,
+        "tokens": answer.tokens,
+        "latency_ms": answer.latency_ms,
+        "model": MODEL,
+    }
+    with open(path, "a") as fh:
+        fh.write(json.dumps(record) + "\n")
+
+
+def read_log(path, last: int = 50) -> list[dict]:
+    path = Path(path)
+    if not path.exists():
+        return []
+    lines = path.read_text().splitlines()[-last:]
+    out = []
+    for line in lines:
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue  # a half-written line from a crash must not break the panel
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -199,17 +288,22 @@ def _series_col(df, cats, used) -> str | None:
 # the model
 # --------------------------------------------------------------------------
 
-def _client():
+def _client(max_retries: int = 2):
     from groq import Groq
 
     key = os.getenv("GROQ_API_KEY")
     if not key:
         raise RuntimeError("GROQ_API_KEY is not set -- copy .env.example to .env and add your key")
-    return Groq(api_key=key)
+    # The SDK's retries honour the server's retry-after on a 429; the eval
+    # harness raises this because the free tier allows 8k tokens a minute.
+    return Groq(api_key=key, max_retries=max_retries)
 
 
-def _user_prompt(schema: str, joins: str, question: str, history: list[tuple[str, str]]) -> str:
+def _user_prompt(schema: str, joins: str, question: str,
+                 history: list[tuple[str, str]], metrics: str = "") -> str:
     parts = ["SCHEMA:", schema, joins]
+    if metrics:
+        parts.append("\n" + metrics)
     if history:
         parts.append("\nEARLIER IN THIS CONVERSATION (for follow-up context):")
         for q, sql in history[-3:]:
@@ -218,13 +312,16 @@ def _user_prompt(schema: str, joins: str, question: str, history: list[tuple[str
     return "\n".join(parts)
 
 
-def _complete(client, messages) -> dict:
+def _complete(client, messages, meter: dict | None = None) -> dict:
     resp = client.chat.completions.create(
         model=MODEL,
         messages=messages,
         temperature=0,  # SQL generation is not a place for creativity
         response_format={"type": "json_object"},
     )
+    usage = getattr(resp, "usage", None)
+    if meter is not None and usage is not None:
+        meter["tokens"] = meter.get("tokens", 0) + int(getattr(usage, "total_tokens", 0) or 0)
     return json.loads(resp.choices[0].message.content)
 
 
@@ -235,24 +332,40 @@ def ask(
     joins: str,
     history: list[tuple[str, str]] | None = None,
     client=None,
+    metrics: list[dict] | None = None,
 ) -> Answer:
     """Ask a question. Returns an Answer carrying the SQL, the data and the chart spec."""
+    started = time.perf_counter()
+    answer = _ask(question, con, schema, joins, history, client, metrics or [])
+    answer.latency_ms = int((time.perf_counter() - started) * 1000)
+    return answer
+
+
+def _ask(question, con, schema, joins, history, client, metrics) -> Answer:
     try:
         client = client or _client()
     except RuntimeError as exc:
         return Answer(question, error=str(exc))
     messages = [
         {"role": "system", "content": SYSTEM},
-        {"role": "user", "content": _user_prompt(schema, joins, question, history or [])},
+        {"role": "user", "content": _user_prompt(
+            schema, joins, question, history or [], metrics_text(metrics))},
     ]
 
+    meter: dict = {}
     try:
-        reply = _complete(client, messages)
+        reply = _complete(client, messages, meter)
     except Exception as exc:
         return Answer(question, error=f"Model call failed: {exc}")
 
     sql = (reply.get("sql") or "").strip() or None
-    answer = Answer(question, sql=sql, explanation=reply.get("explanation", ""))
+    known = {m["name"] for m in metrics}
+    answer = Answer(
+        question, sql=sql, explanation=reply.get("explanation", ""),
+        # only names that were actually offered -- the model may not invent one
+        metrics_used=[m for m in (reply.get("metrics_used") or []) if m in known],
+        tokens=meter.get("tokens", 0),
+    )
     if not sql:
         # The model declined -- that is a correct outcome, not a failure.
         return answer
@@ -263,7 +376,8 @@ def ask(
         answer.error = f"Blocked: {exc}"
         return answer
     except Exception as exc:
-        repaired = _repair(client, messages, sql, str(exc), con)
+        repaired = _repair(client, messages, sql, str(exc), con, meter)
+        answer.tokens = meter.get("tokens", 0)
         if repaired is None:
             answer.error = f"Query failed: {exc}"
             return answer
@@ -274,7 +388,7 @@ def ask(
     return answer
 
 
-def _repair(client, messages, bad_sql: str, error: str, con):
+def _repair(client, messages, bad_sql: str, error: str, con, meter: dict | None = None):
     """One retry, with the engine's own error message fed back to the model."""
     messages = messages + [
         {"role": "assistant", "content": json.dumps({"sql": bad_sql})},
@@ -288,7 +402,7 @@ def _repair(client, messages, bad_sql: str, error: str, con):
         },
     ]
     try:
-        reply = _complete(client, messages)
+        reply = _complete(client, messages, meter)
         sql = (reply.get("sql") or "").strip()
         if not sql:
             return None

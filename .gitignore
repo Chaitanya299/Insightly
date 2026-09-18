@@ -12,3 +12,7 @@ __pycache__/
 .claudeignore
 CLAUDE.md
 docs/INDEX.md
+
+# query trace log -- local, may contain customer questions
+logs/
+.code-review-graph/

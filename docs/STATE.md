@@ -23,7 +23,11 @@ graph LR
 - Shape-based chart selection, sanity-checked against the model's suggestion
 - Per-column visual profiles (distribution, time coverage, top values) before any question
 - Editable, re-runnable SQL under every answer
-- 11 stubbed assertions, 5 live assertions, 1M-row benchmark (~9s ingest, 561-char prompt)
+- Business definitions as configuration (`config/metrics.toml`), cited under answers
+- Privacy mode (`SEND_SAMPLES=false`), per-question JSONL trace with an in-app panel
+- Eval harness with ablation: every component scored by what breaks without it
+- CI running the stubbed suite on every push
+- 17 stubbed assertions, 5 live assertions, 1M-row benchmark (~9s ingest, 561-char prompt)
 
 ## In progress
 Nothing.
@@ -34,8 +38,9 @@ Codex second-opinion review — the ChatGPT account's Codex quota is exhausted u
 The review in this repo is therefore self-review, not cross-model.
 
 ## Known gaps
-- No semantic layer. "Revenue" means net-of-refunds only because the model chose it;
-  nothing pins that definition down. See [ADR 0002](decisions/0002-text-to-sql-over-rows-in-prompt.md).
+- Definitions are a prompt instruction, not compiled SQL; the model can still ignore one.
+  The evals catch it when it does. See [ADR 0007](decisions/0007-business-definitions-as-configuration.md).
+- Throughput is bounded by the API: ~5 questions/minute for the whole app on the free tier.
 - Single session, in-memory, no auth.
 - Very wide tables (200+ columns) would need schema cards trimmed to the columns a
   question plausibly touches.

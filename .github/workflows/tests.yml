@@ -1,0 +1,20 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  stubbed:
+    # The stubbed suite: guard, coercion, joins, charts, repair, bad files.
+    # Needs no API key, so it runs on every push. The live suite
+    # (tests/test_live.py) calls the real model and is run by hand.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python tests/test_engine.py

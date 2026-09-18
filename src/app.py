@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -26,6 +27,11 @@ st.set_page_config(page_title="Data Q&A", page_icon="📊", layout="wide")
 
 PALETTE = ["#4C78A8", "#F58518", "#54A24B", "#E45756", "#72B7B2", "#B279A2"]
 SAMPLES_SIG = ("samples",)
+ROOT = Path(__file__).parent.parent
+METRICS_PATH = os.getenv("METRICS_PATH", str(ROOT / "config" / "metrics.toml"))
+TRACE_PATH = os.getenv("TRACE_PATH", str(ROOT / "logs" / "queries.jsonl"))
+# Privacy mode: send column names and types only, no sample values, to the model.
+SEND_SAMPLES = os.getenv("SEND_SAMPLES", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 # --------------------------------------------------------------------------
@@ -46,6 +52,7 @@ def state():
     ss.setdefault("suggestions", [])
     ss.setdefault("cache", {})
     ss.setdefault("pending", None)
+    ss.setdefault("metrics", [])
     return ss
 
 
@@ -54,8 +61,9 @@ def rebuild(ss, uploads):
     ss.con = engine.connect()
     ss.tables, ss.problems = profiling.load_files(uploads, ss.con)
     ss.joins = profiling.discover_joins(ss.con, ss.tables)
-    ss.schema = profiling.schema_text(ss.tables)
+    ss.schema = profiling.schema_text(ss.tables, samples=SEND_SAMPLES)
     ss.joins_text = profiling.joins_text(ss.joins)
+    ss.metrics = engine.load_metrics(METRICS_PATH, ss.tables)
     ss.answers, ss.cache, ss.suggestions = [], {}, []
 
 
@@ -243,6 +251,36 @@ def render_overview(tables: list) -> None:
                 st.caption("Cleaned on import: " + "; ".join(cleaned))
 
 
+def render_trace_panel() -> None:
+    """Recent questions, what ran, and what each cost. For the engineer, not the analyst."""
+    records = engine.read_log(TRACE_PATH, last=50)
+    if not records:
+        return
+    with st.expander(f"Recent queries ({len(records)})"):
+        answered = [r for r in records if r["status"] in ("ok", "repaired")]
+        tokens = [r["tokens"] for r in records if r.get("tokens")]
+        latency = sorted(r["latency_ms"] for r in records if r.get("latency_ms"))
+        if latency:
+            st.caption(
+                f"{len(answered)}/{len(records)} answered · "
+                f"median {latency[len(latency) // 2]:,} ms · "
+                f"{sum(tokens) // max(len(tokens), 1):,} tokens/question"
+            )
+        st.dataframe(
+            pd.DataFrame([{
+                "when": r["at"][11:19],
+                "question": r["question"],
+                "status": r["status"],
+                "rows": r["rows"],
+                "tokens": r["tokens"],
+                "ms": r["latency_ms"],
+            } for r in reversed(records)]),
+            hide_index=True, use_container_width=True,
+        )
+        st.caption(f"Full trace, including SQL: `{Path(TRACE_PATH).relative_to(ROOT)}`"
+                   if Path(TRACE_PATH).is_relative_to(ROOT) else f"Full trace: `{TRACE_PATH}`")
+
+
 def render_answer(ss, idx: int, answer: engine.Answer):
     if answer.error:
         st.error(answer.error)
@@ -250,6 +288,10 @@ def render_answer(ss, idx: int, answer: engine.Answer):
         st.markdown(answer.explanation)
     if answer.repaired:
         st.caption("↻ the first query errored; it was repaired automatically and re-run")
+    if answer.metrics_used:
+        meanings = {m["name"]: m["meaning"] for m in ss.metrics}
+        st.caption("📐 Uses the agreed definition of " + "; ".join(
+            f"**{name.replace('_', ' ')}** ({meanings.get(name, '')})" for name in answer.metrics_used))
 
     if answer.df is not None and not answer.df.empty:
         shown = ordered_for_display(answer.df, answer.chart)
@@ -335,6 +377,11 @@ with st.sidebar:
             f"{sum(t.rows for t in ss.tables):,} rows total\n\n"
             + "\n".join(f"- `{t.name}` · {t.rows:,} rows" for t in ss.tables)
         )
+    if not SEND_SAMPLES:
+        st.caption("🔒 **Privacy mode** — only column names and types are sent to the "
+                   "model. No data values leave this machine.")
+
+    render_trace_panel()
 
 st.title("Ask your data a question")
 
@@ -350,6 +397,12 @@ st.caption(
 
 with st.expander("What's in these files", expanded=not ss.answers):
     render_overview(ss.tables)
+    if ss.metrics:
+        st.markdown("**Agreed definitions** — from `config/metrics.toml`; answers use these "
+                    "instead of the model's own reading:")
+        for m in ss.metrics:
+            st.markdown(f"- **{m['name'].replace('_', ' ')}** — {m['meaning']}  \n"
+                        f"  `{m['expression']}`")
     if ss.joins:
         st.markdown("**Detected joins** — how these files connect:")
         for j in ss.joins[:8]:
@@ -391,7 +444,12 @@ if question:
             if key in ss.cache:
                 answer = ss.cache[key]
             else:
-                answer = engine.ask(question, ss.con, ss.schema, ss.joins_text, history)
+                answer = engine.ask(question, ss.con, ss.schema, ss.joins_text, history,
+                                    metrics=ss.metrics)
                 ss.cache[key] = answer
+                try:
+                    engine.log_answer(answer, TRACE_PATH)
+                except OSError:
+                    pass  # a full disk must not cost the user their answer
     ss.answers.append(answer)
     st.rerun()
