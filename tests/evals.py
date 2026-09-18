@@ -230,6 +230,33 @@ def grade(case: Case, checker, status: str, df) -> bool:
 _quota_exhausted = False
 
 
+MAX_WAIT_S = 20 * 60   # longest cooldown worth sitting out; beyond this, stop
+MAX_WAITS = 4          # cooldowns sat out per question before giving up on it
+
+
+def _is_daily(err: str | None) -> bool:
+    """A daily quota does not come back in minutes; waiting for it is pointless."""
+    text = (err or "").lower()
+    return any(s in text for s in ("per day", "(tpd)", "(rpd)", "daily"))
+
+
+def retry_after_s(err: str | None) -> float | None:
+    """Seconds until a rate limit lifts, if the error says. None if it doesn't.
+
+    Routers and providers each say it differently: FreeLLMAPI puts `retryAtMs`
+    in the body ("cooldown reset ~8m"); Groq says "try again in 7m12.5s".
+    """
+    text = err or ""
+    m = re.search(r"retryAtMs['\"]?\s*:\s*(\d{12,})", text)
+    if m:
+        return max(0.0, int(m.group(1)) / 1000 - time.time())
+    m = re.search(r"(?:reset|again in)\s*~?\s*(?:(\d+)h)?\s*(?:(\d+)m(?!s))?\s*(?:([\d.]+)s)?", text, re.I)
+    if m and any(m.groups()):
+        h, mins, secs = (float(g) if g else 0.0 for g in m.groups())
+        return h * 3600 + mins * 60 + secs
+    return None
+
+
 def _is_quota(err: str | None) -> bool:
     text = (err or "").lower()
     if text.startswith(("query failed", "blocked")):
@@ -248,11 +275,24 @@ def run_config(name, data_label, raw, frames, asker, client, repeat, cases=None)
             if _quota_exhausted:
                 status, df, tokens, err = "not_run", None, 0, "skipped: API quota exhausted"
             else:
-                status, df, tokens, err, *extra = asker(case.question, client)
-                served = extra[0] if extra else []
-                if status == "error" and _is_quota(err):
-                    _quota_exhausted = True
-                    status = "not_run"
+                for waits in range(MAX_WAITS + 1):
+                    status, df, tokens, err, *extra = asker(case.question, client)
+                    served = extra[0] if extra else []
+                    if not (status == "error" and _is_quota(err)):
+                        break
+                    # A cooldown with a stated reset is worth waiting out; a daily
+                    # quota, or a wait longer than the cap, is not.
+                    wait = retry_after_s(err)
+                    # A router reports the pool: "groq: daily_quota_exhausted ... soonest
+                    # cooldown reset ~10m" means another member is back in 10 minutes.
+                    # Its retryAtMs is authoritative; only a bare daily-quota error ends the run.
+                    daily = _is_daily(err) and "retryatms" not in (err or "").lower()
+                    if daily or wait is None or wait > MAX_WAIT_S or waits == MAX_WAITS:
+                        _quota_exhausted = True
+                        status = "not_run"
+                        break
+                    print(f"  … rate-limited, waiting {wait / 60:.1f} min for the cooldown", flush=True)
+                    time.sleep(wait + 5)
             passed = None if status == "not_run" else grade(case, checker, status, df)
             run.results.append({"question": case.question, "tags": sorted(case.tags),
                                 "status": status, "passed": passed, "tokens": tokens,
@@ -313,6 +353,7 @@ class Suite:
     metrics: Path
     out: Path
     subset: object = None  # raw -> smaller raw for the naive run; None = naive sees everything
+    configs: list | None = None  # default configurations; None = all of CONFIGS
 
 
 def _sample_load() -> dict[str, pd.DataFrame]:
@@ -334,8 +375,13 @@ def suites() -> dict[str, Suite]:
     return {
         "sample": Suite("sample", _sample_load, lambda raw: _frames(*raw.values()), CASES,
                         METRICS, ROOT / "docs" / "evals.md", _sample_subset),
+        # The hard data's dates are all ISO, so date detection cannot change an answer,
+        # and type recovery was already measured on the sample suite: running either
+        # here would spend quota on configurations that cannot tell us anything new.
         "hard": Suite("hard", eval_hard.load, eval_hard.frames, eval_hard.CASES,
-                      eval_hard.METRICS, ROOT / "docs" / "evals-hard.md", None),
+                      eval_hard.METRICS, ROOT / "docs" / "evals-hard.md", None,
+                      configs=["full", "no_join_hints", "no_definitions", "privacy_mode",
+                               "privacy_no_join_hints"]),
     }
 
 
@@ -345,14 +391,22 @@ PROVIDERS = {
     "groq": {"base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY",
              "model_env": "GROQ_MODEL"},
     "freellmapi": {"base_url": os.getenv("FREELLMAPI_URL", "http://localhost:3001/v1"),
-                   "key_env": "FREELLMAPI_API_KEY", "model_env": "FREELLMAPI_MODEL"},
+                   "key_env": "FREELLMAPI_API_KEY", "key_aliases": ["FREE_LLM_API"],
+                   "model_env": "FREELLMAPI_MODEL"},
 }
 _ACTIVE = {"provider": "groq"}
 
 
+def _key(spec: dict) -> str | None:
+    for env in [spec["key_env"], *spec.get("key_aliases", [])]:
+        if os.getenv(env):
+            return os.getenv(env)
+    return None
+
+
 def connect_provider(name: str, model: str | None, allow_routing: bool):
     spec = PROVIDERS[name]
-    key = os.getenv(spec["key_env"])
+    key = _key(spec)
     if not key:
         sys.exit(f"{spec['key_env']} is not set. Add it to .env (never pass keys on the command line).")
     model = model or os.getenv(spec["model_env"]) or (engine.MODEL if name == "groq" else None)
@@ -372,7 +426,7 @@ def connect_provider(name: str, model: str | None, allow_routing: bool):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("configs", nargs="*", default=list(CONFIGS), help=f"subset of {list(CONFIGS)}")
+    ap.add_argument("configs", nargs="*", help=f"subset of {list(CONFIGS)} (default: the suite's own)")
     ap.add_argument("--suite", choices=["sample", "hard"], default="sample")
     ap.add_argument("--provider", choices=list(PROVIDERS), default="groq")
     ap.add_argument("--model", help="model id to pin (default: provider's *_MODEL env var)")
@@ -402,7 +456,7 @@ def main() -> None:
 
     if args.list_models:
         spec = PROVIDERS[args.provider]
-        key = os.getenv(spec["key_env"]) or sys.exit(f"{spec['key_env']} is not set.")
+        key = _key(spec) or sys.exit(f"{spec['key_env']} is not set.")
         client = engine._client(max_retries=0, base_url=spec["base_url"], api_key=key)
         for m in sorted(m.id for m in client.models.list().data):
             print(m)
@@ -414,7 +468,8 @@ def main() -> None:
     raw = suite.load()
     frames = suite.frames(raw)
     runs: list[Run] = []
-    for name in ([] if args.subset_only else args.configs):
+    configs = args.configs or suite.configs or list(CONFIGS)
+    for name in ([] if args.subset_only else configs):
         print(f"\n== {name} (full data) ==", flush=True)
         ctx = system_context(raw, suite.metrics, **CONFIGS[name])
         runs.append(run_config(name, "full", raw, frames,

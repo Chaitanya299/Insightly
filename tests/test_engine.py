@@ -367,6 +367,41 @@ def test_schema_card_lists_every_category_value():
     assert "CMP" not in profiling.schema_text(tables, samples=False)
 
 
+def test_eval_harness_waits_out_a_cooldown_but_not_a_daily_quota():
+    """A router's '~8m cooldown' is worth waiting for; 'tokens per day' is not."""
+    sys.path.insert(0, str(ROOT / "tests"))
+    import evals
+
+    frames = evals._frames(pd.read_csv(SAMPLES / "sales.csv"),
+                           pd.read_excel(SAMPLES / "customers.xlsx"),
+                           pd.read_csv(SAMPLES / "products.csv"))
+    slept, real_sleep = [], evals.time.sleep
+    evals.time.sleep = slept.append
+    try:
+        evals._quota_exhausted = False
+        calls = []
+
+        def cooling_then_fine(question, client):
+            calls.append(question)
+            if len(calls) == 1:
+                return "error", None, 0, "Model call failed: 429 All models rate-limited. Soonest cooldown reset ~2m"
+            return "declined", None, 10, None, ["router/some-model"]
+
+        run = evals.run_config("x", "full", None, frames, cooling_then_fine, None, 1,
+                               cases=[evals.CASES[-1]])  # a decline case
+        assert slept and 100 < slept[0] < 200, slept          # waited ~2 min, once
+        assert run.results[0]["status"] == "declined" and run.results[0]["passed"]
+        assert not evals._quota_exhausted
+
+        daily = lambda q, c: ("error", None, 0, "Model call failed: 429 rate limit on tokens per day (TPD)")
+        run = evals.run_config("y", "full", None, frames, daily, None, 1, cases=evals.CASES[:2])
+        assert [r["status"] for r in run.results] == ["not_run", "not_run"]
+        assert len(slept) == 1, "a daily quota must not be waited on"
+    finally:
+        evals.time.sleep = real_sleep
+        evals._quota_exhausted = False
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
