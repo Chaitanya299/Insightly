@@ -1,65 +1,68 @@
-# Insightly: approach, decisions, and what I'd build next
+# Insightly: approach, decisions and what I'd build next
 
-**The decision everything follows from.** The obvious build pastes the spreadsheet into the
-prompt and asks the model. It states figures it worked out in its head, can't hold a real
-file, and can't reliably join two. So here the model writes SQL and DuckDB computes every
-number. The model sees a schema card (names, types, null rates, three sample values or the
-full list for a small category column), never the rows or its own results. The card is 564 characters at 900 rows and at
-1,000,000; pasting even the 900-row sample into a prompt is rejected by the free-tier API as too large.
-On a 100-row subset it fits, and the naive approach scores 10/20 against this system's 20/20,
-at four times the tokens.
+Live: https://insightly0.streamlit.app · Code: https://github.com/Chaitanya299/Insightly
 
-**The delta, measured.** Twenty questions with answers computed independently in pandas,
-run against the full system and with one component switched off at a time:
+## The problem, and the one decision everything follows from
 
-| | Correct |
-|---|---|
-| Full system | 20 / 20 |
-| Without type recovery | 16 / 20 |
-| Without date-orientation detection | 16 / 20 |
-| Without join hints · definitions · privacy mode on | 20 / 20 each |
+The brief was an AI app that answers plain-English questions over several uploaded CSV
+and Excel files. The obvious build pastes the rows into the prompt and asks the model.
+That fails in three ways: the model does arithmetic in its head, a real file doesn't fit
+in the context window, and joining two files becomes guesswork.
 
-Type recovery turns `"$1,234.50"` into a number. Date detection handles `03/05/2024`, which
-is 3 May or 5 March and parses either way *without error*. Switched off, the model still
-answers every monthly question, confidently and wrongly. That silent failure is the reason
-the component exists.
+So Insightly splits the job. **The model writes SQL; DuckDB computes the answer.** The
+model receives a *schema card*: column names, types, null rates and a few sample values.
+It never sees the rows or its own results. On the same 20 questions over the same 100 rows,
+pasting rows scored **10/20** at 6,040 tokens a question; Insightly scored **20/20** at
+1,504. On the full 900-row sample the naive request is rejected as too large, while
+Insightly's prompt stays 564 characters at 900 rows and at 1,000,000.
 
-The other three made no difference on that data: the key names are obvious and the
-category spellings guessable. So I built a second, 17-question set where each one is the
-only thing standing between the model and a wrong answer (mismatched keys, revenue net of
-discount with an April fiscal year, codes like `CXL` and `EMEA`):
+## What I built on top of the model (the delta)
 
-| Hard set | Correct |
-|---|---|
-| Full system | 17 / 17 |
-| Without definitions | 12 / 17 |
-| Privacy mode on | 13 / 17 |
-| Privacy mode, without join hints | 10 / 17 |
+- **Type recovery.** `$1,234.50`, `15%` and `(99)` become numbers on import.
+- **Date-order detection.** `03/05/2024` parses as March *or* May without an error. The
+  app infers day-first or month-first from the dates that can't be ambiguous.
+- **Join discovery.** Links between files are found by value overlap (containment, not
+  Jaccard, because a foreign key is many-to-one), so keys with different names still join.
+- **Agreed definitions.** `config/metrics.toml` fixes what "revenue" means. The chat and
+  the rule-built dashboard both use it, and it can be edited in the app. Each formula is
+  test-run before it's saved.
+- **Trust surface.** A "verified by DuckDB" stamp, editable SQL under every answer, a
+  decline when the data can't answer, and one repair retry fed the database's exact error.
 
-Definitions earn their place outright. Join hints matter once privacy mode hides the
-values the model would otherwise match by eye. Privacy mode costs the coded filters.
+## How I know each part matters
 
-**Other deliberate choices.** Generated SQL is untrusted input: a read-only guard, plus
-DuckDB with file access switched off. One error-fed repair retry, not a loop. Charts come
-from the result's shape, with the model's suggestion checked first. Each file loads in
-isolation. The SQL is editable under every answer, so users check the machine instead of
-trusting it.
+I wrote questions whose answers I computed separately in pandas, then switched off one
+component at a time:
 
-**What went wrong, and what it taught me.** A stubbed test for "decline what the data
-can't answer" passed while the real model answered *headcount* with a count of customers.
-A stub tests the code around a model, never the model. There is now a live suite. Later,
-my own eval harness scored API quota refusals as wrong answers and reported the naive
-baseline at 0/20 when it hadn't run. It now records *not run* and stops. Both were the
-same bug: treating silence as a result.
+| Switched off | Sample set (20) | Hard set (17) |
+|---|---|---|
+| Nothing (full system) | 20 | 17 |
+| Type recovery / date detection | 16 / 16 | |
+| Agreed definitions | 20 | 12 |
+| Privacy mode, without join hints | 20 | 10 |
 
-**Honest limits.** Sample values (and the full list for small category columns) do leave
-the machine; privacy mode removes them, at the cost above. Throughput is set by the API, not the server: the free tier's 8,000 tokens a
-minute is about five questions a minute for the whole app. Single session, no auth.
+The sample data turned out too easy to test three components, so I built a hard set
+designed to break them: decoy keys, codes like `EMEA`, and an April fiscal year. Building
+it found two real bugs before any model ran. I report the components that made no
+difference instead of hiding them.
 
-**What I'd build next.**
-1. **An eval set built with the customer, on their data**: the only honest answer to
-   "does it work on ours?"
-2. **Compile definitions into SQL** instead of asking the model to copy them.
-3. **A verification pass** that checks the generated SQL answers the question actually asked.
-4. **Persistence, auth and a paid API tier**, because the rate limit is the first wall a
-   second user hits.
+## Safety
+
+Generated SQL is untrusted input. A guard allows one read-only `SELECT`/`WITH` statement
+and blocks file functions, and DuckDB runs with external access off, so a bypass still
+can't read the disk. Privacy mode sends names and types only.
+
+## What went wrong, and what it taught me
+
+A stubbed test for "decline what you can't answer" passed while the real model answered
+*headcount* with a count of customers. A stub tests the code around a model, never the
+model, so there is now a live suite. Later my eval harness scored API quota errors as wrong
+answers and reported the naive baseline at 0/20 when it hadn't run. It now records *not
+run*. Both were the same bug: treating silence as a result.
+
+## Limits and next steps
+
+It's single-user with no auth, the free API allows about 5 questions a minute, and
+definitions are a prompt instruction, not compiled SQL. Next: an eval set built **with the
+customer on their data**, definitions compiled into SQL, a second pass that checks the SQL
+answers the question asked, and persistence with auth.

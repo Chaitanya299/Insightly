@@ -2,7 +2,9 @@
 
 AI-powered data Q&A for CSV and Excel files. Every number comes from SQL you can read.
 
-> **Demo:** [Demo GIF/video]
+> **Try it live:** https://insightly0.streamlit.app · click **Load sample files**, then ask a question.
+>
+> **Demo video:** [add link] · **Write-up:** [`docs/WRITEUP.md`](docs/WRITEUP.md) · **Demo script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
 
 ## Why Insightly?
 
