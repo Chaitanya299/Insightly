@@ -426,8 +426,29 @@ def test_dashboard_uses_the_agreed_definition_and_joins_across_files():
     assert dashboard.compact(12.5) == "12.50" and dashboard.compact(None) == "—"
 
 
+def test_edited_definitions_are_checked_then_round_trip_through_toml():
+    import tempfile
+
+    con = engine.connect()
+    tables, _ = profiling.load_files(sorted(SAMPLES.glob("*.*")), con)
+    edit = {"name": "gross_revenue", "table": "sales", "columns": [],
+            "expression": "SUM(amount)", "meaning": 'All orders, "refunds" included'}
+    d, err = engine.check_definition(con, tables, edit)
+    assert err is None and d["columns"] == ["amount"], "columns are read off the formula"
+    assert engine.check_definition(con, tables, {**edit, "expression": "SUM(nope)"})[1]
+    assert engine.check_definition(con, tables, {**edit, "name": "Gross Revenue"})[1]
+    assert "multiple statements" in engine.check_definition(
+        con, tables, {**edit, "expression": "1; DROP TABLE sales"})[1]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "metrics.toml"
+        engine.save_definitions(path, [d])
+        assert engine.read_definitions(path) == [d], "quotes in the meaning survive"
+        assert [m["name"] for m in engine.load_metrics(path, tables)] == ["gross_revenue"]
+
+
 if __name__ == "__main__":
-    tests =[v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
     for t in tests:
         try:

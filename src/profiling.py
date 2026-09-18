@@ -34,6 +34,7 @@ class Column:
     spark: list[float] | None = None   # shape of the column, for a mini chart
     spark_kind: str = ""               # histogram | time | top | ""
     span: str = ""                     # "Jan 2024 - Dec 2025", "0 - 8", ""
+    top: list[str] = field(default_factory=list)  # "North 28%", most common first
 
 
 @dataclass
@@ -312,6 +313,12 @@ def _spark(s: pd.Series, dtype: str, distinct: int) -> tuple[list[float] | None,
     return None, ""
 
 
+def _top(s: pd.Series, n: int = 4) -> list[str]:
+    """The labels a frequency chart can't show: which values, and what share."""
+    shares = s.dropna().astype(str).value_counts(normalize=True).head(n)
+    return [f"{v} {p:.0%}" for v, p in shares.items()]
+
+
 CATEGORY_MAX = 12  # a column with this few distinct short values is a category
 
 
@@ -360,6 +367,7 @@ def profile(df: pd.DataFrame) -> list[Column]:
                 spark=spark,
                 spark_kind=kind,
                 span=_span(s, dtype),
+                top=_top(s) if kind == "top" else [],
             )
         )
     return cols

@@ -47,7 +47,8 @@ headcount?"* (it should decline).
 
 - **Ask:** plain-English questions across several files. Each answer comes back as a chart, a table and editable SQL.
 - **Dashboard:** KPIs, the monthly trend and a cross-file breakdown, built from rules, with no model call.
-- **Data:** every column profiled as a mini chart, what was cleaned on import, and how the files connect.
+- **Data:** every column profiled as a labelled mini chart (rows per month, spread, most common values with shares), what was cleaned on import, and how the files connect.
+- **Agreed definitions:** the organisation's formula for words like *revenue*, used by both the chat and the dashboard. You can edit them in the app, and each formula is test-run against the data before it's saved.
 - **Quality:** the eval evidence and live usage analytics (answer rate, latency, tokens).
 
 ## Architecture

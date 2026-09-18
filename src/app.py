@@ -220,16 +220,40 @@ def render_chart(df: pd.DataFrame, chart: dict, height: int | None = None):
         st.caption(note)
 
 
-_SPARK_LABEL = {"time": "over time", "histogram": "spread", "top": "top values"}
+# What each mini chart shows, in words a first-time user can read.
+_SPARK_LABEL = {
+    "time": "rows per month",
+    "histogram": "spread, low → high",
+    "top": "most common first",
+}
+
+
+def _describe(c) -> str:
+    """The words next to a mini chart: its range, or its actual top values."""
+    if c.spark_kind == "top" and c.top:
+        text = " · ".join(c.top)
+    elif c.span:
+        text = c.span
+    else:
+        text = f"{c.distinct:,} different values"
+    if c.nulls_pct:
+        text += f"  ·  {c.nulls_pct:g}% empty"
+    return text
 
 
 def render_overview(tables: list) -> None:
-    """What did I actually upload? One row per column, with its shape.
+    """What did I actually upload? One row per column, with a picture of its shape.
 
-    The point is the shape, not the statistic: where the numbers cluster, whether
-    the dates have a hole in them, which categories dominate. It is also the
-    fastest way to catch a file that was read wrong before asking it anything.
+    The picture answers "was this read right?" before anything is asked: where the
+    numbers cluster, whether the dates have a gap, which values dominate.
     """
+    st.caption(
+        "Each column gets a small picture of its data. **Rows per month** shows how the "
+        "dates are spread, and a gap or spike means missing or duplicated data. **Spread, "
+        "low → high** is a histogram, low values on the left and high on the right. **Most "
+        "common first** shows how often each value appears. The exact values and shares are listed "
+        "beside it. Ids and free-text columns get no picture, because their shape means nothing."
+    )
     for table in tables:
         dates = [c for c in table.columns if c.dtype == "DATE" and c.span]
         head = f"**{table.name}** · {table.rows:,} rows · {len(table.columns)} columns"
@@ -237,28 +261,27 @@ def render_overview(tables: list) -> None:
             head += f" · {dates[0].name} spans {dates[0].span}"
         st.markdown(head)
 
-        rows = []
-        for c in table.columns:
-            summary = c.span or f"{c.distinct:,} distinct"
-            if c.nulls_pct:
-                summary += f"  ·  {c.nulls_pct:g}% empty"
-            rows.append({
-                "column": c.name,
-                "type": c.dtype,
-                "shape": c.spark or [],
-                "": _SPARK_LABEL.get(c.spark_kind, ""),
-                "range": summary,
-            })
+        rows = [{
+            "column": c.name,
+            "type": {"TEXT": "text", "INTEGER": "number", "DECIMAL": "number",
+                     "DATE": "date"}.get(c.dtype, c.dtype.lower()),
+            "picture": c.spark or [],
+            "values": (f"{_SPARK_LABEL[c.spark_kind]}: " if c.spark_kind in _SPARK_LABEL else "")
+                      + _describe(c),
+        } for c in table.columns]
         st.dataframe(
             pd.DataFrame(rows),
             hide_index=True,
             width="stretch",
             column_config={
-                "column": st.column_config.TextColumn(width="small"),
+                "column": st.column_config.TextColumn(width="medium"),
                 "type": st.column_config.TextColumn(width="small"),
-                "shape": st.column_config.BarChartColumn(y_min=0, width="medium"),
-                "": st.column_config.TextColumn(width="small"),
-                "range": st.column_config.TextColumn("range / values", width="medium"),
+                "picture": st.column_config.BarChartColumn(
+                    y_min=0, width="medium",
+                    help="Bar heights are row counts. Read it with the next column."),
+                "values": st.column_config.TextColumn(
+                    "what the picture shows", width="large",
+                    help="Numbers and dates: lowest – highest. Categories: the most common values and their share of rows."),
             },
         )
         if table.notes:
@@ -720,24 +743,77 @@ def view_dashboard() -> None:
             st.code(sql, language="sql")
 
 
+def render_definitions() -> None:
+    """What an agreed definition is, the ones in force, and an editor for them."""
+    st.markdown("#### Agreed definitions")
+    st.markdown(
+        "A business word like **revenue** can mean several things: gross sales, sales net "
+        "of refunds, or net of discounts. An **agreed definition** fixes the one your "
+        "organisation uses, as a SQL formula plus a plain-English meaning. When a question "
+        "uses the word, the model must use this exact formula instead of guessing, and the "
+        "dashboard uses it too. Every answer that relied on one says so under the answer."
+    )
+    st.caption("Measured: without them the model chose a different meaning from the "
+               "organisation's in 5 of 17 hard-suite questions. Stored in `config/metrics.toml`.")
+
+    applied = {m["name"] for m in ss.metrics}
+    for d in engine.read_definitions(METRICS_PATH):
+        mark = "✓ in use" if d["name"] in applied else "○ not used: its table or columns aren't loaded"
+        st.markdown(f"- **{d['name'].replace('_', ' ')}** ({mark}): {d['meaning']}  \n"
+                    f"  `{d['expression']}` on `{d['table']}`")
+
+    with st.expander("✏️ Edit definitions"):
+        st.caption("Edit a cell, add a row at the bottom, or select a row and delete it. The "
+                   "formula is an aggregate over one table, like `SUM(amount) FILTER (WHERE "
+                   "status = 'Completed')`. Each one is test-run against the loaded data "
+                   "before it's saved.")
+        current = engine.read_definitions(METRICS_PATH)
+        by_name = {d["name"]: d for d in current}
+        edited = st.data_editor(
+            pd.DataFrame(current or [{"name": "", "table": "", "expression": "", "meaning": ""}],
+                         columns=["name", "table", "expression", "meaning"]),
+            num_rows="dynamic", hide_index=True, width="stretch", key="defs_editor",
+            column_config={
+                "name": st.column_config.TextColumn("term", help="e.g. revenue, net_revenue",
+                                                    required=True, width="small"),
+                "table": st.column_config.SelectboxColumn(
+                    "table", options=sorted({t.name for t in ss.tables} | {d["table"] for d in current}),
+                    required=True, width="small"),
+                "expression": st.column_config.TextColumn("SQL formula", required=True, width="large"),
+                "meaning": st.column_config.TextColumn("meaning in plain English", width="large"),
+            },
+        )
+        if st.button("Save definitions", type="primary"):
+            checked, errors = [], []
+            for row in edited.fillna("").to_dict("records"):
+                if not any(str(v).strip() for v in row.values()):
+                    continue  # an empty row left by the editor
+                row["columns"] = by_name.get(row["name"], {}).get("columns", [])
+                d, err = engine.check_definition(ss.con, ss.tables, row)
+                (errors.append(err) if err else checked.append(d))
+            if len({d["name"] for d in checked}) < len(checked):
+                errors.append("Two definitions share a term; each term needs one meaning.")
+            if errors:
+                st.error("Not saved. Fix these first:\n\n" + "\n".join(f"- {e}" for e in errors))
+            else:
+                engine.save_definitions(METRICS_PATH, checked)
+                ss.metrics = engine.load_metrics(METRICS_PATH, ss.tables)
+                ss.cache = {}  # cached answers were written under the old definitions
+                st.toast(f"Saved {len(checked)} definitions. New questions use them.", icon="✅")
+                st.rerun()
+
+
 def view_data() -> None:
     render_overview(ss.tables)
-    left, right = st.columns(2)
-    with left:
-        st.markdown("**Agreed definitions**")
-        if ss.metrics:
-            st.caption("From `config/metrics.toml`. Answers use these instead of the model's own reading.")
-            for m in ss.metrics:
-                st.markdown(f"- **{m['name'].replace('_', ' ')}**: {m['meaning']}  \n  `{m['expression']}`")
-        else:
-            st.caption("None apply to these files.")
-    with right:
-        st.markdown("**How these files connect**")
-        if ss.joins:
-            for j in ss.joins[:8]:
-                st.markdown(f"- `{j['left']}` = `{j['right']}` · {int(j['overlap'] * 100)}% of values overlap")
-        else:
-            st.caption("No joins detected.")
+    st.markdown("#### How these files connect")
+    st.caption("Found by matching values across files, so one question can span several of them.")
+    if ss.joins:
+        st.markdown("\n".join(f"- `{j['left']}` = `{j['right']}` · {int(j['overlap'] * 100)}% of values match"
+                               for j in ss.joins[:8]))
+    else:
+        st.caption("No joins detected.")
+    st.divider()
+    render_definitions()
 
 
 def view_ask() -> None:

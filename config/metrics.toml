@@ -1,12 +1,9 @@
-# Business definitions.
+# Business definitions: the organisation's meaning of a term, not the model's.
 #
 # When a question uses one of these terms, the model is told to use this exact
-# expression instead of choosing its own reading. This is where an organisation
-# settles "is revenue net of refunds?" once, rather than letting each answer
-# decide. Edit this file per customer -- no code changes.
-#
-# A metric is only offered to the model when its `table` and every one of its
-# `columns` exist in the current upload; otherwise it is silently left out.
+# expression, and the dashboard uses it too. A definition is only offered when its
+# `table` and every one of its `columns` exist in the current upload.
+# Editable in the app (Data view) or by hand.
 
 [revenue]
 table = "sales"

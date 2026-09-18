@@ -110,6 +110,63 @@ def load_metrics(path, tables) -> list[dict]:
     return usable
 
 
+def read_definitions(path) -> list[dict]:
+    """Every definition in the file, applicable to this upload or not (for editing)."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    with open(path, "rb") as fh:
+        raw = tomllib.load(fh)
+    return [{"name": k, "table": v.get("table", ""), "columns": list(v.get("columns", [])),
+             "expression": v.get("expression", ""), "meaning": v.get("meaning", "")}
+            for k, v in raw.items()]
+
+
+_DEFS_HEADER = """# Business definitions: the organisation's meaning of a term, not the model's.
+#
+# When a question uses one of these terms, the model is told to use this exact
+# expression, and the dashboard uses it too. A definition is only offered when its
+# `table` and every one of its `columns` exist in the current upload.
+# Editable in the app (Data view) or by hand.
+"""
+
+
+def save_definitions(path, definitions: list[dict]) -> None:
+    """Write definitions as TOML. json.dumps gives valid TOML basic strings."""
+    out = [_DEFS_HEADER]
+    for d in definitions:
+        out.append(f"\n[{d['name']}]\n"
+                   f"table = {json.dumps(d['table'])}\n"
+                   f"columns = {json.dumps(list(d['columns']))}\n"
+                   f"expression = {json.dumps(d['expression'])}\n"
+                   f"meaning = {json.dumps(d['meaning'])}\n")
+    Path(path).write_text("".join(out))
+
+
+def check_definition(con, tables, d: dict) -> tuple[dict, str | None]:
+    """Validate one edited definition against the loaded data.
+
+    Returns the definition with its `columns` filled in from the expression, and
+    an error message, or None. A definition for a table that isn't loaded can't
+    be tested; it is kept as written.
+    """
+    name = (d.get("name") or "").strip()
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+        return d, f"`{name or '(blank)'}`: names are lowercase letters, digits and _ (e.g. net_revenue)"
+    if not (d.get("expression") or "").strip():
+        return d, f"`{name}`: the expression is empty"
+    table = next((t for t in tables if t.name == d.get("table")), None)
+    if table is None:
+        return d, None
+    expr = d["expression"].strip()
+    cols = [c for c in table.column_names() if re.search(rf"\b{re.escape(c)}\b", expr)]
+    try:
+        run_sql(con, f'SELECT {expr} AS v FROM "{table.name}"')
+    except Exception as exc:  # the guard's error or DuckDB's: both are the user's to fix
+        return d, f"`{name}`: {str(exc).splitlines()[0]}"
+    return {**d, "name": name, "expression": expr, "columns": cols}, None
+
+
 def metrics_text(metrics: list[dict]) -> str:
     if not metrics:
         return ""
