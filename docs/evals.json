@@ -1670,6 +1670,7 @@
  "notes": [
   "The 06:46 run printed each result but did not yet save them; `docs/evals.json` was rebuilt from that run's log. Per-question token counts were not logged, so each answer carries its run's measured average. The three `no_type_recovery` errors were query failures whose messages were not captured.",
   "That run exhausted the free tier's daily token quota during the subset comparison. The first version of this harness scored the resulting API errors as wrong answers, reporting the naive approach at 0/20 when it had not run. It now records them as not run and stops.",
-  "In a separate 3-question smoke run earlier the same day, the naive approach on the full files was rejected outright (`413 Request too large`, 8,000 tokens/minute limit), and on the subset it answered 1 of 3 correctly at ~5,900 tokens per question."
+  "In a separate 3-question smoke run earlier the same day, the naive approach on the full files was rejected outright (`413 Request too large`, 8,000 tokens/minute limit), and on the subset it answered 1 of 3 correctly at ~5,900 tokens per question.",
+  "These results predate two changes found while building the hard suite: join discovery now accepts foreign keys not named like keys, and the schema card lists every value of small category columns, so the prompt this suite sees has changed. The numbers above measured the earlier system; rerun to measure the current one."
  ]
 }

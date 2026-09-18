@@ -151,6 +151,33 @@ Groq rejects the request as too large (`413`). A run on a 100-row subset exhaust
 tier's daily token quota before it finished; the harness records those as *not run*, never
 as wrong. Re-run with `python tests/evals.py --subset-only --merge` once the quota resets.
 
+### The hard suite
+
+The sample data turned out too easy to test three of the components, so
+[`data/evals/hard/`](data/evals/hard/) is built so that each one is the only thing standing
+between the model and a wrong answer:
+
+| Trap | What the data does | Tests |
+|---|---|---|
+| Mismatched keys | `orders.customer` holds `A-7342`, matching `clients.legacy_ref`; `clients.client_id` (`CL-0042`) is the obvious-looking decoy | Join hints |
+| Unguessable definitions | Revenue is gross *less discount*, completed only; the fiscal year starts 1 April | Agreed definitions |
+| Coded categories | Status is `CMP/RFD/CXL/PND`, region `AMER/EMEA/APAC`; questions say "cancelled", "Europe" | Sample values / privacy mode |
+
+Building it found two bugs before any model ran, both deterministic and now tested: join
+discovery ignored foreign keys not *named* like keys (it found no joins at all on this data),
+and the schema card showed three sample values, so the fourth status code was invisible to
+every filter. Every checker is validated to pass the correct SQL and fail each trap's wrong
+answer. Results land in [`docs/evals-hard.md`](docs/evals-hard.md):
+
+```bash
+python tests/evals.py --suite hard --provider freellmapi --list-models   # pick one model
+python tests/evals.py --suite hard --provider freellmapi --model <id>
+```
+
+The harness refuses auto-routed models for ablations: if a router answers "full" with one model
+and "no join hints" with another, the difference measures the router. Every answer records
+which model actually served it, and the report flags any run that mixed models.
+
 ## Running it for a customer
 
 Three things a real deployment needs that a demo does not:

@@ -1,0 +1,15 @@
+# Definitions for the hard eval suite. Deliberately ones a model would not guess:
+# revenue nets out the discount as well as excluding non-completed orders, and
+# the fiscal year starts in April.
+
+[revenue]
+table = "orders"
+columns = ["gross", "disc", "stat"]
+expression = "SUM(gross - disc) FILTER (WHERE stat = 'CMP')"
+meaning = "Net revenue: gross less discount, completed orders only."
+
+[fiscal_year]
+table = "orders"
+columns = ["placed"]
+expression = "CASE WHEN month(placed) >= 4 THEN year(placed) ELSE year(placed) - 1 END"
+meaning = "Fiscal year starts 1 April: FY2024 runs 1 Apr 2024 to 31 Mar 2025."

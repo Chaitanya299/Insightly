@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import re
 import sys
 import time
@@ -47,118 +48,12 @@ METRICS = ROOT / "config" / "metrics.toml"
 SUBSET_ROWS = 100
 
 
-# --------------------------------------------------------------------------
-# checkers -- one per answer shape, shared by every configuration
-# --------------------------------------------------------------------------
-
-def _close(a: float, b: float) -> bool:
-    return abs(a - b) <= max(0.01, 0.001 * abs(b))
-
-
-def _numbers(values) -> list[float]:
-    out = []
-    for v in values:
-        if isinstance(v, bool) or v is None:
-            continue
-        if isinstance(v, (int, float)):
-            if pd.notna(v):
-                out.append(float(v))
-            continue
-        try:  # the naive baseline returns "$1,234.50"; be generous to it
-            out.append(float(str(v).replace("$", "").replace(",", "").replace("%", "").strip()))
-        except ValueError:
-            pass
-    return out
-
-
-def _key(v) -> str:
-    """Normalise a category or a month so '2024-03-01', Timestamp and 'March 2024' agree."""
-    if isinstance(v, (pd.Timestamp, datetime)):
-        return f"{v:%Y-%m}"
-    text = str(v).strip()
-    if len(text) >= 6 and any(ch.isdigit() for ch in text):
-        try:
-            return f"{pd.to_datetime(text):%Y-%m}"
-        except (ValueError, TypeError):
-            pass
-    return text.lower()
-
-
-def scalar(expected: float, pct: bool = False):
-    def check(df):
-        if df is None or df.empty or len(df) > 3:
-            return False
-        targets = [expected, expected * 100] if pct else [expected]
-        return any(_close(n, t) for n in _numbers(df.to_numpy().ravel()) for t in targets)
-    return check
-
-
-def count(expected: int):
-    def check(df):
-        if df is None:
-            return False
-        if len(df) == expected:          # "which customers ..." -> the rows themselves
-            return True
-        return len(df) == 1 and any(_close(n, expected) for n in _numbers(df.iloc[0]))
-    return check
-
-
-def _key_column(df, keys: list[str]):
-    for col in df.columns:
-        vals = [_key(v) for v in df[col]]
-        if set(keys) <= set(vals):
-            return vals
-    return None
-
-
-def keyed(expected: dict):
-    keys = {_key(k): v for k, v in expected.items()}
-
-    def check(df):
-        if df is None or df.empty:
-            return False
-        for col in df.columns:
-            vals = [_key(v) for v in df[col]]
-            if not set(keys) <= set(vals):
-                continue
-            ok = True
-            for k, want in keys.items():
-                row = df.iloc[vals.index(k)]
-                if not any(_close(n, want) for n in _numbers(row)):
-                    ok = False
-                    break
-            if ok:
-                return True
-        return False
-    return check
-
-
-def ranked(expected: list):
-    keys = [_key(k) for k in expected]
-
-    def check(df):
-        if df is None or df.empty:
-            return False
-        vals = _key_column(df, keys)
-        return vals is not None and vals[: len(keys)] == keys
-    return check
-
-
-def declines(df):
-    return df is None  # caller passes None only when the system declined
+from eval_checks import Case, count, declines, keyed, ranked, scalar  # noqa: E402,F401
 
 
 # --------------------------------------------------------------------------
-# the questions, with answers derived from the data rather than typed in
+# the sample suite -- questions with answers derived from the data
 # --------------------------------------------------------------------------
-
-@dataclass
-class Case:
-    question: str
-    tags: set[str]
-    expect: object  # (sales, customers, products) -> checker
-    decline: bool = False
-
 
 def _frames(sales_raw, customers_raw, products_raw):
     sales, _ = profiling.clean_frame(sales_raw)
@@ -234,6 +129,9 @@ CONFIGS = {
     "no_join_hints":    dict(joins=False),
     "no_definitions":   dict(metrics=False),
     "privacy_mode":     dict(samples=False),
+    # Privacy mode removes the sample values a model might match keys by, which
+    # leaves join hints (names only, no values) as the one way to find the key.
+    "privacy_no_join_hints": dict(samples=False, joins=False),
 }
 
 
@@ -243,8 +141,8 @@ def _upload(name: str, df: pd.DataFrame):
     return buf
 
 
-def system_context(raw: dict[str, pd.DataFrame], recover_types=True, detect_orientation=True,
-                   joins=True, metrics=True, samples=True):
+def system_context(raw: dict[str, pd.DataFrame], metrics_path=METRICS, recover_types=True,
+                   detect_orientation=True, joins=True, metrics=True, samples=True):
     con = engine.connect()
     uploads = [_upload(f"{name}.csv", df) for name, df in raw.items()]
     tables, problems = profiling.load_files(uploads, con, recover_types=recover_types,
@@ -254,7 +152,7 @@ def system_context(raw: dict[str, pd.DataFrame], recover_types=True, detect_orie
         "con": con,
         "schema": profiling.schema_text(tables, samples=samples),
         "joins": profiling.joins_text(profiling.discover_joins(con, tables)) if joins else "",
-        "metrics": engine.load_metrics(METRICS, tables) if metrics else [],
+        "metrics": engine.load_metrics(metrics_path, tables) if metrics else [],
     }
 
 
@@ -262,7 +160,7 @@ def ask_system(ctx, question, client):
     a = engine.ask(question, ctx["con"], ctx["schema"], ctx["joins"],
                    client=client, metrics=ctx["metrics"])
     status = "error" if a.error else "declined" if not a.sql else "answered"
-    return status, (None if status != "answered" else a.df), a.tokens, a.error
+    return status, (None if status != "answered" else a.df), a.tokens, a.error, a.served_by
 
 
 NAIVE_SYSTEM = """You are a data analyst. The user's files are below as CSV text.
@@ -280,16 +178,17 @@ def ask_naive(raw: dict[str, pd.DataFrame], question, client):
             {"role": "user", "content": f"{files}\n\nQUESTION: {question}"},
         ], meter)
     except Exception as exc:
-        return "error", None, meter.get("tokens", 0), str(exc)[:200]
+        return "error", None, meter.get("tokens", 0), str(exc)[:200], meter.get("served", [])
+    served = meter.get("served", [])
     rows = reply.get("rows")
     if rows is None:
-        return "declined", None, meter.get("tokens", 0), None
+        return "declined", None, meter.get("tokens", 0), None, served
     try:
         cols = reply.get("columns") or [f"c{i}" for i in range(len(rows[0]) if rows else 0)]
         df = pd.DataFrame(rows, columns=cols)
     except Exception as exc:
-        return "error", None, meter.get("tokens", 0), f"unparseable table: {exc}"[:200]
-    return "answered", df, meter.get("tokens", 0), None
+        return "error", None, meter.get("tokens", 0), f"unparseable table: {exc}"[:200], served
+    return "answered", df, meter.get("tokens", 0), None, served
 
 
 # --------------------------------------------------------------------------
@@ -302,6 +201,12 @@ class Run:
     data: str
     results: list[dict] = field(default_factory=list)
     at: str = ""
+    provider: str = ""
+    model: str = ""
+
+    @property
+    def served(self) -> list[str]:
+        return sorted({m for r in self.results for m in r.get("served_by", [])})
 
     @property
     def score(self) -> int:
@@ -327,25 +232,31 @@ _quota_exhausted = False
 
 def _is_quota(err: str | None) -> bool:
     text = (err or "").lower()
-    return "429" in text or "rate limit" in text or "tokens per day" in text
+    if text.startswith(("query failed", "blocked")):
+        return False  # the SQL engine's own errors, whatever digits they contain
+    return any(s in text for s in ("429", "rate limit", "tokens per day", "quota", "exhausted"))
 
 
-def run_config(name, data_label, raw, frames, asker, client, repeat) -> Run:
+def run_config(name, data_label, raw, frames, asker, client, repeat, cases=None) -> Run:
     global _quota_exhausted
-    run = Run(name, data_label, at=f"{datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC")
-    for case in CASES:
+    run = Run(name, data_label, at=f"{datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC",
+              provider=_ACTIVE["provider"], model=engine.MODEL)
+    for case in cases or CASES:
         checker = None if case.decline else case.expect(*frames)
         for _ in range(repeat):
+            served: list = []
             if _quota_exhausted:
                 status, df, tokens, err = "not_run", None, 0, "skipped: API quota exhausted"
             else:
-                status, df, tokens, err = asker(case.question, client)
+                status, df, tokens, err, *extra = asker(case.question, client)
+                served = extra[0] if extra else []
                 if status == "error" and _is_quota(err):
                     _quota_exhausted = True
                     status = "not_run"
             passed = None if status == "not_run" else grade(case, checker, status, df)
             run.results.append({"question": case.question, "tags": sorted(case.tags),
                                 "status": status, "passed": passed, "tokens": tokens,
+                                "served_by": sorted(set(served)),
                                 "error": _redact(err) if err else None})
             mark = {True: "✓", False: "✗", None: "·"}[passed]
             print(f"  {mark} [{name}] {case.question[:62]:<62} {status}", flush=True)
@@ -357,13 +268,13 @@ def _redact(text: str) -> str:
     return re.sub(r"\borg_[A-Za-z0-9]+", "org_[redacted]", text or "")
 
 
-def naive_full_probe(raw, client) -> str:
+def naive_full_probe(raw, client, question: str | None = None) -> str:
     """Try the naive approach once on the full files, and report what happens.
 
     A 413 is the finding (the request is too large to send at all); a 429 only
     means the account is out of quota, which says nothing about the approach.
     """
-    status, _, _, err = ask_naive(raw, CASES[0].question, client)
+    status, _, _, err, *_ = ask_naive(raw, question or CASES[0].question, client)
     if status == "error" and _is_quota(err):
         return "not run: API quota exhausted"
     return status if status != "error" else f"error: {_redact(err)}"
@@ -374,7 +285,8 @@ def save(path: Path, runs: list[Run], probe, notes: list[str] | None = None) -> 
         "model": engine.MODEL,
         "probe": probe,
         "notes": notes or [],
-        "runs": [{"name": r.name, "data": r.data, "at": r.at, "results": r.results} for r in runs],
+        "runs": [{"name": r.name, "data": r.data, "at": r.at, "provider": r.provider,
+                  "model": r.model, "results": r.results} for r in runs],
     }, indent=1))
 
 
@@ -382,7 +294,9 @@ def load(path: Path) -> tuple[list[Run], str | None]:
     if not path.exists():
         return [], None
     raw = json.loads(path.read_text())
-    return [Run(r["name"], r["data"], r["results"], r.get("at", "")) for r in raw["runs"]], raw.get("probe")
+    return [Run(r["name"], r["data"], r["results"], r.get("at", ""),
+                r.get("provider", "groq"), r.get("model", raw.get("model", "")))
+            for r in raw["runs"]], raw.get("probe")
 
 
 def notes(path: Path) -> list[str]:
@@ -390,63 +304,143 @@ def notes(path: Path) -> list[str]:
     return json.loads(path.read_text()).get("notes", []) if path.exists() else []
 
 
+@dataclass
+class Suite:
+    name: str
+    load: object         # () -> {table: raw DataFrame, as uploaded}
+    frames: object       # raw -> the tuple each case's `expect` takes
+    cases: list
+    metrics: Path
+    out: Path
+    subset: object = None  # raw -> smaller raw for the naive run; None = naive sees everything
+
+
+def _sample_load() -> dict[str, pd.DataFrame]:
+    return {"sales": pd.read_csv(SAMPLES / "sales.csv"),
+            "customers": pd.read_excel(SAMPLES / "customers.xlsx"),
+            "products": pd.read_csv(SAMPLES / "products.csv")}
+
+
+def _sample_subset(raw):
+    sales = raw["sales"].head(SUBSET_ROWS)
+    return {"sales": sales,
+            "customers": raw["customers"][raw["customers"]["id"].isin(sales["customer_id"])],
+            "products": raw["products"]}
+
+
+def suites() -> dict[str, Suite]:
+    import eval_hard  # imported here: it needs src/ on the path, set up above
+
+    return {
+        "sample": Suite("sample", _sample_load, lambda raw: _frames(*raw.values()), CASES,
+                        METRICS, ROOT / "docs" / "evals.md", _sample_subset),
+        "hard": Suite("hard", eval_hard.load, eval_hard.frames, eval_hard.CASES,
+                      eval_hard.METRICS, ROOT / "docs" / "evals-hard.md", None),
+    }
+
+
+# The API the harness talks to. Production is Groq; FreeLLMAPI is a local router
+# stacking many providers' free tiers, useful when Groq's daily quota runs out.
+PROVIDERS = {
+    "groq": {"base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY",
+             "model_env": "GROQ_MODEL"},
+    "freellmapi": {"base_url": os.getenv("FREELLMAPI_URL", "http://localhost:3001/v1"),
+                   "key_env": "FREELLMAPI_API_KEY", "model_env": "FREELLMAPI_MODEL"},
+}
+_ACTIVE = {"provider": "groq"}
+
+
+def connect_provider(name: str, model: str | None, allow_routing: bool):
+    spec = PROVIDERS[name]
+    key = os.getenv(spec["key_env"])
+    if not key:
+        sys.exit(f"{spec['key_env']} is not set. Add it to .env (never pass keys on the command line).")
+    model = model or os.getenv(spec["model_env"]) or (engine.MODEL if name == "groq" else None)
+    if not model:
+        sys.exit(f"Pick a model: --model <id> or {spec['model_env']} in .env. "
+                 f"`python tests/evals.py --provider {name} --list-models` shows what's available.")
+    # An ablation compares configurations. If a router picks a different model
+    # per request, the comparison measures the router, not the component.
+    if (model.startswith("auto") or model == "fusion") and not allow_routing:
+        sys.exit(f"'{model}' lets the router choose a different model per request, which "
+                 "breaks the comparison between configurations. Pin one model, or pass "
+                 "--allow-routing if you accept that.")
+    engine.MODEL = model
+    _ACTIVE["provider"] = name
+    return engine._client(max_retries=12, base_url=spec["base_url"], api_key=key)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("configs", nargs="*", default=list(CONFIGS), help=f"subset of {list(CONFIGS)}")
+    ap.add_argument("--suite", choices=["sample", "hard"], default="sample")
+    ap.add_argument("--provider", choices=list(PROVIDERS), default="groq")
+    ap.add_argument("--model", help="model id to pin (default: provider's *_MODEL env var)")
+    ap.add_argument("--list-models", action="store_true", help="list the provider's models and exit")
+    ap.add_argument("--allow-routing", action="store_true", help="permit auto-routed models")
     ap.add_argument("--no-naive", action="store_true", help="skip the naive comparison")
     ap.add_argument("--subset-only", action="store_true",
-                    help="run only the naive-vs-full comparison on the subset")
+                    help="run only the naive comparison (and its full-system counterpart)")
     ap.add_argument("--merge", action="store_true",
-                    help="keep earlier results from docs/evals.json for runs not repeated now")
+                    help="keep earlier results for runs not repeated now")
     ap.add_argument("--render-only", action="store_true",
-                    help="make no API calls; re-render the report from docs/evals.json")
+                    help="make no API calls; re-render the report from the saved results")
     ap.add_argument("--repeat", type=int, default=1, help="runs per question (the model is not deterministic)")
-    ap.add_argument("--out", default=str(ROOT / "docs" / "evals.md"))
-    ap.add_argument("--json", default=str(ROOT / "docs" / "evals.json"))
+    ap.add_argument("--out")
+    ap.add_argument("--json")
     args = ap.parse_args()
-    json_path = Path(args.json)
+
+    suite = suites()[args.suite]
+    out = Path(args.out or suite.out)
+    json_path = Path(args.json or out.with_suffix(".json"))
 
     if args.render_only:
         runs, probe = load(json_path)
-        Path(args.out).write_text(render(runs, probe, notes(json_path)))
-        print(Path(args.out).read_text())
+        out.write_text(render(runs, probe, notes(json_path), suite))
+        print(out.read_text())
         return
 
-    client = engine._client(max_retries=12)  # sit out per-minute 429s rather than fail them
+    if args.list_models:
+        spec = PROVIDERS[args.provider]
+        key = os.getenv(spec["key_env"]) or sys.exit(f"{spec['key_env']} is not set.")
+        client = engine._client(max_retries=0, base_url=spec["base_url"], api_key=key)
+        for m in sorted(m.id for m in client.models.list().data):
+            print(m)
+        return
 
-    full_raw = {
-        "sales": pd.read_csv(SAMPLES / "sales.csv"),
-        "customers": pd.read_excel(SAMPLES / "customers.xlsx"),
-        "products": pd.read_csv(SAMPLES / "products.csv"),
-    }
-    sub_sales = full_raw["sales"].head(SUBSET_ROWS)
-    sub_raw = {
-        "sales": sub_sales,
-        "customers": full_raw["customers"][full_raw["customers"]["id"].isin(sub_sales["customer_id"])],
-        "products": full_raw["products"],
-    }
-    full_frames = _frames(*full_raw.values())
-    sub_frames = _frames(*sub_raw.values())
+    client = connect_provider(args.provider, args.model, args.allow_routing)
+    print(f"suite {suite.name} · provider {args.provider} · model {engine.MODEL}", flush=True)
 
+    raw = suite.load()
+    frames = suite.frames(raw)
     runs: list[Run] = []
     for name in ([] if args.subset_only else args.configs):
         print(f"\n== {name} (full data) ==", flush=True)
-        ctx = system_context(full_raw, **CONFIGS[name])
-        runs.append(run_config(name, "full", full_raw, full_frames,
-                               lambda q, cl, ctx=ctx: ask_system(ctx, q, cl), client, args.repeat))
+        ctx = system_context(raw, suite.metrics, **CONFIGS[name])
+        runs.append(run_config(name, "full", raw, frames,
+                               lambda q, cl, ctx=ctx: ask_system(ctx, q, cl), client, args.repeat,
+                               suite.cases))
 
     probe = None
     if not args.no_naive:
-        print("\n== naive on full data (single probe) ==", flush=True)
-        probe = naive_full_probe(full_raw, client)
-        print(f"  {probe[:160]}", flush=True)
-        print(f"\n== full system, {SUBSET_ROWS}-row subset ==", flush=True)
-        ctx = system_context(sub_raw)
-        runs.append(run_config("full", f"{SUBSET_ROWS}-row subset", sub_raw, sub_frames,
-                               lambda q, cl: ask_system(ctx, q, cl), client, args.repeat))
-        print(f"\n== naive, {SUBSET_ROWS}-row subset ==", flush=True)
-        runs.append(run_config("naive", f"{SUBSET_ROWS}-row subset", sub_raw, sub_frames,
-                               lambda q, cl: ask_naive(sub_raw, q, cl), client, args.repeat))
+        if suite.subset is not None:
+            print("\n== naive on full data (single probe) ==", flush=True)
+            probe = naive_full_probe(raw, client, suite.cases[0].question)
+            print(f"  {probe[:160]}", flush=True)
+            sub_raw = suite.subset(raw)
+            sub_frames = suite.frames(sub_raw)
+            label = f"{SUBSET_ROWS}-row subset"
+            print(f"\n== full system, {label} ==", flush=True)
+            ctx = system_context(sub_raw, suite.metrics)
+            runs.append(run_config("full", label, sub_raw, sub_frames,
+                                   lambda q, cl: ask_system(ctx, q, cl), client, args.repeat,
+                                   suite.cases))
+        else:
+            sub_raw, sub_frames, label = raw, frames, "full"
+        print(f"\n== naive, {label} ==", flush=True)
+        runs.append(run_config("naive", label, sub_raw, sub_frames,
+                               lambda q, cl: ask_naive(sub_raw, q, cl), client, args.repeat,
+                               suite.cases))
 
     if args.merge:
         earlier, earlier_probe = load(json_path)
@@ -461,8 +455,8 @@ def main() -> None:
             probe = earlier_probe or probe
     kept = notes(json_path) if args.merge else []
     save(json_path, runs, probe, kept)
-    report = render(runs, probe, kept)
-    Path(args.out).write_text(report)
+    report = render(runs, probe, kept, suite)
+    out.write_text(report)
     print("\n" + report)
 
 
@@ -471,25 +465,38 @@ def _order(runs: list[Run]) -> list[Run]:
     return sorted(runs, key=lambda r: (r.data != "full", rank.get(r.name, 99)))
 
 
-def render(runs: list[Run], probe, notes: list[str] | None = None) -> str:
+def _model_cell(r: Run) -> str:
+    """What the run asked for, and what actually answered if that differs."""
+    served = r.served
+    cell = f"`{r.model}`" if r.model else "—"
+    if len(served) > 1:
+        cell += " ⚠ answered by " + ", ".join(f"`{m}`" for m in served)
+    elif served and served[0] != r.model:
+        cell += f" via `{served[0]}`"
+    return cell
+
+
+def render(runs: list[Run], probe, notes: list[str] | None = None, suite: "Suite | None" = None) -> str:
     runs = _order(runs)
+    cases = suite.cases if suite else CASES
+    name = suite.name if suite else "sample"
+    source = (suite.out.with_suffix(".json").relative_to(ROOT) if suite else "docs/evals.json")
+    metrics = (suite.metrics.relative_to(ROOT) if suite else "config/metrics.toml")
     full = next((r for r in runs if r.name == "full" and r.data == "full"), None)
-    model = engine.MODEL
     lines = [
-        "# Evaluation results",
+        f"# Evaluation results — `{name}` suite",
         "",
-        f"Rendered {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC by `python tests/evals.py` "
-        f"from `docs/evals.json` · model `{model}` · {len(CASES)} questions.",
+        f"Rendered {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC by `python tests/evals.py "
+        f"--suite {name}` from `{source}` · {len(cases)} questions.",
         "",
-        "Correct means correct by `config/metrics.toml` (revenue is net of refunds). "
-        "Expected answers are computed in pandas, not typed in. "
-        "**Not run** means the API refused for quota reasons; those questions are excluded, "
-        "never scored as wrong.",
+        f"Correct means correct by `{metrics}`. Expected answers are computed in pandas, not "
+        "typed in. **Not run** means the API refused for quota reasons; those questions are "
+        "excluded, never scored as wrong.",
         "",
         "## Score by configuration",
         "",
-        "| Configuration | Data | Correct | Tokens / question | Run at |",
-        "|---|---|---|---|---|",
+        "| Configuration | Data | Correct | Tokens / question | Model | Run at |",
+        "|---|---|---|---|---|---|",
     ]
     for r in runs:
         toks = [x["tokens"] for x in r.results if x.get("tokens")]
@@ -498,7 +505,14 @@ def render(runs: list[Run], probe, notes: list[str] | None = None) -> str:
         score = f"**{r.score} / {r.ran}**" + (f" ({missing} not run)" if missing else "")
         if not r.ran:
             score = f"not run ({missing} skipped)"
-        lines.append(f"| `{r.name}` | {r.data} | {score} | {avg} | {r.at} |")
+        lines.append(f"| `{r.name}` | {r.data} | {score} | {avg} | {_model_cell(r)} | {r.at} |")
+    models = {r.model for r in runs if r.ran}
+    if len(models) > 1:
+        lines += ["", "⚠ **These runs used different models** (" + ", ".join(f"`{m}`" for m in sorted(models))
+                  + "). Differences between them are not ablations; compare only rows with the same model."]
+    if any(len(r.served) > 1 for r in runs):
+        lines += ["", "⚠ **At least one run was answered by more than one model** (a router failed "
+                  "over mid-run). Its score mixes models."]
     if probe is not None:
         lines += ["", f"Naive approach on the **full** files: `{probe[:220]}`"]
 
@@ -508,7 +522,10 @@ def render(runs: list[Run], probe, notes: list[str] | None = None) -> str:
                   "and which questions it cost:", ""]
         full_pass = {x["question"] for x in full.results if x["passed"]}
         for r in runs:
-            if r is full or r.data != "full":
+            if r is full or r.data != "full" or r.name == "naive" or not r.ran:
+                continue
+            if r.model != full.model:
+                lines += [f"**`{r.name}`**: not comparable — run on `{r.model}`, full on `{full.model}`", ""]
                 continue
             passed = {x["question"] for x in r.results if x["passed"]}
             lost = sorted(full_pass - passed)
@@ -523,7 +540,7 @@ def render(runs: list[Run], probe, notes: list[str] | None = None) -> str:
               "| Question | " + " | ".join(f"`{r.name}`{' (sub)' if r.data != 'full' else ''}"
                                           for r in runs) + " |",
               "|---|" + "---|" * len(runs)]
-    for case in CASES:
+    for case in cases:
         cells = []
         for r in runs:
             hits = [x for x in r.results if x["question"] == case.question]
@@ -542,11 +559,13 @@ def render(runs: list[Run], probe, notes: list[str] | None = None) -> str:
     lines += ["", "## Caveats", "",
               "- One run per question unless stated. The model is not deterministic even at "
               "temperature 0, so a one-question gap between configurations is within noise.",
-              "- The naive baseline runs on a 100-row subset because the full files exceed the "
-              "free tier's per-request token limit. The subset is the naive approach's best case.",
-              "- Twenty questions on one synthetic dataset. This shows what each component does "
-              "*here*. A component scoring the same with and without it has not been shown to "
-              "be useless, only not exercised by these questions."]
+              f"- {len(cases)} questions on one synthetic dataset. This shows what each component "
+              "does *here*. A component scoring the same with and without it has not been shown "
+              "to be useless, only not exercised by these questions."]
+    if suite is None or suite.subset is not None:
+        lines.insert(len(lines) - 1, "- The naive baseline runs on a 100-row subset because the "
+                     "full files exceed the free tier's per-request token limit. The subset is the "
+                     "naive approach's best case.")
     lines += [f"- {n}" for n in (notes or [])]
     lines.append("")
     return "\n".join(lines)
