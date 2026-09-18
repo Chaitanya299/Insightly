@@ -308,6 +308,30 @@ def test_ablation_switches_really_switch_the_component_off():
     assert naive.iloc[2] == smart.iloc[2]  # ISO rows agree either way
 
 
+def test_eval_harness_never_scores_a_quota_refusal_as_a_wrong_answer():
+    """The first full eval run reported the naive approach at 0/20 when it had not
+    run at all: every 'answer' was the API refusing on quota."""
+    sys.path.insert(0, str(ROOT / "tests"))
+    import evals
+
+    evals._quota_exhausted = False
+    calls = []
+
+    def refused(question, client):
+        calls.append(question)
+        return "error", None, 0, "Error code: 429 - Rate limit reached ... tokens per day (TPD)"
+
+    frames = evals._frames(pd.read_csv(SAMPLES / "sales.csv"),
+                           pd.read_excel(SAMPLES / "customers.xlsx"),
+                           pd.read_csv(SAMPLES / "products.csv"))
+    run = evals.run_config("naive", "subset", None, frames, refused, None, repeat=1)
+    assert len(calls) == 1, "must stop calling once the quota is gone"
+    assert run.ran == 0 and run.score == 0
+    assert all(r["status"] == "not_run" and r["passed"] is None for r in run.results)
+    assert "not run" in evals.render([run], None)
+    evals._quota_exhausted = False
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

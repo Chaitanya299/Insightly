@@ -1,0 +1,1675 @@
+{
+ "model": "openai/gpt-oss-120b",
+ "probe": "not run: API quota exhausted",
+ "runs": [
+  {
+   "name": "full",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1486,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_type_recovery",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "error",
+     "passed": false,
+     "tokens": 0,
+     "error": "query failed; message not captured in this run"
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "error",
+     "passed": false,
+     "tokens": 0,
+     "error": "query failed; message not captured in this run"
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "error",
+     "passed": false,
+     "tokens": 0,
+     "error": "query failed; message not captured in this run"
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1990,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_date_detection",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1490,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_join_hints",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1462,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_definitions",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1395,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "privacy_mode",
+   "data": "full",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1233,
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "full",
+   "data": "100-row subset",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1491,
+     "error": null
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    }
+   ]
+  },
+  {
+   "name": "naive",
+   "data": "100-row subset",
+   "at": "2026-09-18 06:46 UTC",
+   "results": [
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many orders are in the data, including refunded ones?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many orders were refunded?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is the refund rate?",
+     "tags": [
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is the average order value?",
+     "tags": [
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Average order value by region",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Revenue by customer segment",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What are the top 5 product categories by revenue?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Compare revenue between the North and South regions",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What was the revenue in March 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What was the revenue in May 2024?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Which month in 2024 had the highest revenue?",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Revenue by month in 2024",
+     "tags": [
+      "dates",
+      "definition"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many units of Laptops were sold, excluding refunded orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is the average discount percentage on completed orders?",
+     "tags": [
+      "types"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "Which region has the most customers?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How much revenue came from Enterprise customers in the North region?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "How many customers placed more than 3 orders, counting refunded orders too?",
+     "tags": [],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What is our employee headcount?",
+     "tags": [
+      "decline"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    },
+    {
+     "question": "What was our marketing spend last quarter?",
+     "tags": [
+      "decline"
+     ],
+     "status": "not_run",
+     "passed": null,
+     "tokens": 0,
+     "error": "skipped: API quota exhausted (tokens per day)"
+    }
+   ]
+  }
+ ],
+ "notes": [
+  "The 06:46 run printed each result but did not yet save them; `docs/evals.json` was rebuilt from that run's log. Per-question token counts were not logged, so each answer carries its run's measured average. The three `no_type_recovery` errors were query failures whose messages were not captured.",
+  "That run exhausted the free tier's daily token quota during the subset comparison. The first version of this harness scored the resulting API errors as wrong answers, reporting the naive approach at 0/20 when it had not run. It now records them as not run and stops.",
+  "In a separate 3-question smoke run earlier the same day, the naive approach on the full files was rejected outright (`413 Request too large`, 8,000 tokens/minute limit), and on the subset it answered 1 of 3 correctly at ~5,900 tokens per question."
+ ]
+}
