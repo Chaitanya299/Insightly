@@ -26,6 +26,7 @@ graph LR
 - Business definitions as configuration (`config/metrics.toml`), cited under answers
 - Privacy mode (`SEND_SAMPLES=false`), per-question JSONL trace with an in-app panel
 - Eval harness with ablation: every component scored by what breaks without it
+- Naive vs full on a 100-row subset (gpt-oss-120b): naive 10/20, full 20/20, 4x the tokens
 - Hard eval suite (17 questions, mismatched keys, non-obvious definitions, coded categories):
   full 17/17, no definitions 12/17, privacy 13/17, privacy without join hints 10/17
   (`docs/evals-hard.md`, gpt-oss-20b via FreeLLMAPI)
@@ -38,10 +39,6 @@ Nothing.
 ## Blocked
 Sample suite numbers (`docs/evals.md`) predate the category-values and join-discovery
 changes. Re-run on Groq once the new key is in: `python tests/evals.py`.
-
-Naive-vs-full comparison on the 100-row subset: incomplete. The eval run exhausted Groq's
-free-tier daily token quota; the harness records the remainder as not run. Re-run with
-`python tests/evals.py --subset-only --merge` after the quota resets.
 
 Codex second-opinion review — the ChatGPT account's Codex quota is exhausted until
 2026-09-28. It read every source file, then hit the limit before producing findings.

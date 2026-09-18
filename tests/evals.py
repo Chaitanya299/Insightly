@@ -497,6 +497,10 @@ def main() -> None:
                                lambda q, cl: ask_naive(sub_raw, q, cl), client, args.repeat,
                                suite.cases))
 
+    if not any(r.ran for r in runs):
+        # Nothing answered (quota): saving would overwrite real results with blanks.
+        sys.exit(f"No question ran; {json_path} left untouched.")
+
     if args.merge:
         earlier, earlier_probe = load(json_path)
         # A fresh run replaces an earlier one only if it actually got answers:

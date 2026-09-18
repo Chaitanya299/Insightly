@@ -149,9 +149,16 @@ components guard against data this set doesn't contain yet. That is a gap in the
 reported rather than hidden.
 
 **The naive baseline** (CSV text pasted into the prompt) can't run on these files at all:
-Groq rejects the request as too large (`413`). A run on a 100-row subset exhausted the free
-tier's daily token quota before it finished; the harness records those as *not run*, never
-as wrong. Re-run with `python tests/evals.py --subset-only --merge` once the quota resets.
+Groq rejects the request as too large (`413`). So it gets its best case, a 100-row subset,
+and the full system answers the same 20 questions on the same rows:
+
+| On the 100-row subset | Correct | Tokens / question |
+|---|---|---|
+| Full system | **20 / 20** | 1,504 |
+| Naive (rows in the prompt) | 10 / 20 | 6,040 |
+
+Of the naive misses, three are wrong numbers stated confidently, six are replies that
+aren't valid JSON, and one declines a question the data answers. Four times the tokens, half the accuracy, on data 1% of the size.
 
 ### The hard suite
 

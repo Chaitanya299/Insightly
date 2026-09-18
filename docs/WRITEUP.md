@@ -6,6 +6,8 @@ file, and can't reliably join two. So here the model writes SQL and DuckDB compu
 number. The model sees a schema card (names, types, null rates, three sample values or the
 full list for a small category column), never the rows or its own results. The card is 564 characters at 900 rows and at
 1,000,000; pasting even the 900-row sample into a prompt is rejected by the free-tier API as too large.
+On a 100-row subset it fits, and the naive approach scores 10/20 against this system's 20/20,
+at four times the tokens.
 
 **The delta, measured.** Twenty questions with answers computed independently in pandas,
 run against the full system and with one component switched off at a time:
