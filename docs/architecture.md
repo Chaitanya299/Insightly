@@ -80,11 +80,12 @@ state lives in one process's memory, so scaling out needs sticky sessions.
 
 ## Testing
 
-`tests/test_engine.py` (18 assertions) runs with a stubbed model and needs no API key.
+`tests/test_engine.py` (21 tests) runs with a stubbed model and needs no API key.
 `tests/test_live.py` (5 assertions) runs against the real model and skips without one —
 it exists because a stub tests the plumbing and only the real model tests the prompt.
 `tests/ground_truth.py` recomputes the demo answers in pandas through a different code
 path. `tests/benchmark.py` measures the scaling claim. `tests/evals.py` scores 20
 questions against the full system, the system with each component switched off, and the
-naive rows-in-prompt approach, and writes `docs/evals.md`. CI runs the stubbed suite on
+naive rows-in-prompt approach, and writes `docs/evals.md`; `--suite hard` runs 17
+questions on data built to break each component (`docs/evals-hard.md`). CI runs the stubbed suite on
 every push.
