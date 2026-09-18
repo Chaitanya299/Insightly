@@ -6,8 +6,8 @@ The obvious build is: read the files into pandas, stuff rows into the prompt, le
 model answer. It demos well on 50 rows and fails on everything real — it hallucinates
 figures, blows the context window, and cannot join two files reliably.
 
-So: **the model writes SQL, DuckDB computes the numbers, and the model never sees a data
-value.** It gets a schema card — names, types, null rates, distinct counts, three sample
+So: **the model writes SQL, DuckDB computes the numbers, and the model never sees the
+rows.** It gets a schema card — names, types, null rates, distinct counts, three sample
 values per column — and returns a query.
 
 Three things fall out of that, which is why it was worth deciding first:

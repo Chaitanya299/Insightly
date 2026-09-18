@@ -420,7 +420,11 @@ def _overlap(con, ta: str, ca: str, tb: str, cb: str, sample: int = 5000) -> flo
 # --------------------------------------------------------------------------
 
 def schema_text(tables: list[Table]) -> str:
-    """The compact schema card handed to the model. Rows never appear here."""
+    """The compact schema card handed to the model.
+
+    Rows never appear here, but three sample values per column do, and they
+    leave the machine with the prompt. Not the whole dataset -- but not nothing.
+    """
     out = []
     for t in tables:
         out.append(f'TABLE "{t.name}"  -- from {t.source}, {t.rows:,} rows')

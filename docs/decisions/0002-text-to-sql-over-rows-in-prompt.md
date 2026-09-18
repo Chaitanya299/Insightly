@@ -21,7 +21,11 @@ engineering problem rather than a query.
 
 The model writes DuckDB SQL. DuckDB computes the numbers. The model receives a *schema
 card* — table and column names, types, null rates, distinct counts, three sample values
-per column — and never a data value it did not itself request through a query.
+per column — and never the rows. Query results go to the user, never back to the model.
+
+The three sample values are real data and do reach the model provider. That is a
+deliberate trade: they are what let the model write `status = 'Completed'` instead of
+guessing the spelling. For confidential data they are the thing to turn off.
 
 ## Consequences
 

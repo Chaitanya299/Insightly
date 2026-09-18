@@ -2,9 +2,9 @@
 
 Upload CSV/Excel files, ask analytical questions in plain English, get answers you can verify.
 
-The model writes SQL. **DuckDB computes the numbers.** The model never sees a single
-data value, so it cannot invent one — and the query behind every answer is shown,
-editable, and re-runnable.
+The model writes SQL. **DuckDB computes the numbers.** The model sees the schema and a
+few sample values, never the rows, and results are never sent back to it — so it cannot
+invent a figure, and the query behind every answer is shown, editable, and re-runnable.
 
 ## Quick start
 
@@ -45,7 +45,9 @@ question ───────────────────────�
 ```
 
 The model receives a **schema card** — table names, column names, types, null rates,
-distinct counts, three sample values — and never the rows themselves. This is what makes
+distinct counts, three sample values — and never the rows themselves. (Those sample values
+are real data and do reach the model provider; for confidential data that is the part to
+switch off.) This is what makes
 the app work on a 5-million-row file and what makes hallucinated figures structurally
 impossible: every number is the output of a query you can read.
 

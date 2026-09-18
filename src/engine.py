@@ -1,8 +1,9 @@
 """Question -> SQL -> answer.
 
-The model writes SQL. DuckDB computes the numbers. The model never sees a
-single data value, so it cannot invent one -- every figure on screen is the
-output of a query the user can read, edit and re-run.
+The model writes SQL. DuckDB computes the numbers. The model sees the schema
+and three sample values per column, never the rows, and query results are never
+sent back to it -- so every figure on screen is the output of a query the user
+can read, edit and re-run, not something the model worked out.
 """
 
 from __future__ import annotations
