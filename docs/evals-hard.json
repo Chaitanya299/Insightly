@@ -1,0 +1,1172 @@
+{
+ "model": "gpt-oss-20b",
+ "probe": null,
+ "notes": [],
+ "runs": [
+  {
+   "name": "full",
+   "data": "full",
+   "at": "2026-09-18 08:32 UTC",
+   "provider": "freellmapi",
+   "model": "gpt-oss-20b",
+   "results": [
+    {
+     "question": "How many orders are in the data?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1364,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1485,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in calendar year 2024?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1649,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in FY2024?",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1623,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by fiscal year",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1820,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders were cancelled?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1392,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders are still pending?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1385,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What share of orders were refunded?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1648,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by client tier",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1575,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which company generated the most revenue?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1573,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How much revenue did Aperture GmbH generate?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1526,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was the revenue from clients in Europe?",
+     "tags": [
+      "codes",
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1676,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which region has the most clients?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1470,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many units were ordered per product line, across all orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1536,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by product line",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1666,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is our average delivery time?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1392,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many support tickets did T1 clients open?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1355,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_join_hints",
+   "data": "full",
+   "at": "2026-09-18 08:34 UTC",
+   "provider": "freellmapi",
+   "model": "gpt-oss-20b",
+   "results": [
+    {
+     "question": "How many orders are in the data?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1337,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1414,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in calendar year 2024?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1510,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in FY2024?",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1509,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by fiscal year",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1671,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders were cancelled?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1370,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders are still pending?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1357,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What share of orders were refunded?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1467,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by client tier",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1483,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which company generated the most revenue?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1789,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How much revenue did Aperture GmbH generate?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1645,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was the revenue from clients in Europe?",
+     "tags": [
+      "codes",
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1655,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which region has the most clients?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1435,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many units were ordered per product line, across all orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1400,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by product line",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1525,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is our average delivery time?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1308,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many support tickets did T1 clients open?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1314,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "no_definitions",
+   "data": "full",
+   "at": "2026-09-18 08:35 UTC",
+   "provider": "freellmapi",
+   "model": "gpt-oss-20b",
+   "results": [
+    {
+     "question": "How many orders are in the data?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1234,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1339,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in calendar year 2024?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1399,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in FY2024?",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1507,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by fiscal year",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1510,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders were cancelled?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1297,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders are still pending?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1298,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What share of orders were refunded?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1553,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by client tier",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1545,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which company generated the most revenue?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1454,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How much revenue did Aperture GmbH generate?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1519,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was the revenue from clients in Europe?",
+     "tags": [
+      "codes",
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1462,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which region has the most clients?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1284,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many units were ordered per product line, across all orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1406,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by product line",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1529,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is our average delivery time?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1241,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many support tickets did T1 clients open?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1243,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "privacy_mode",
+   "data": "full",
+   "at": "2026-09-18 08:37 UTC",
+   "provider": "freellmapi",
+   "model": "gpt-oss-20b",
+   "results": [
+    {
+     "question": "How many orders are in the data?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1070,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1195,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in calendar year 2024?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1313,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in FY2024?",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1258,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by fiscal year",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1344,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders were cancelled?",
+     "tags": [
+      "codes"
+     ],
+     "status": "declined",
+     "passed": false,
+     "tokens": 1492,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders are still pending?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1238,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What share of orders were refunded?",
+     "tags": [
+      "codes"
+     ],
+     "status": "declined",
+     "passed": false,
+     "tokens": 1257,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by client tier",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1335,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which company generated the most revenue?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1402,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How much revenue did Aperture GmbH generate?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1242,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was the revenue from clients in Europe?",
+     "tags": [
+      "codes",
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1449,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which region has the most clients?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1209,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many units were ordered per product line, across all orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1173,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by product line",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1256,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is our average delivery time?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1139,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many support tickets did T1 clients open?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1103,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    }
+   ]
+  },
+  {
+   "name": "privacy_no_join_hints",
+   "data": "full",
+   "at": "2026-09-18 08:38 UTC",
+   "provider": "freellmapi",
+   "model": "gpt-oss-20b",
+   "results": [
+    {
+     "question": "How many orders are in the data?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1060,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is the total revenue?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1200,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in calendar year 2024?",
+     "tags": [
+      "definition"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1317,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was revenue in FY2024?",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1280,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by fiscal year",
+     "tags": [
+      "definition",
+      "fiscal"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1381,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders were cancelled?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1524,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many orders are still pending?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1148,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What share of orders were refunded?",
+     "tags": [
+      "codes"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1355,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by client tier",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1213,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which company generated the most revenue?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1293,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How much revenue did Aperture GmbH generate?",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1311,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What was the revenue from clients in Europe?",
+     "tags": [
+      "codes",
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": false,
+     "tokens": 1540,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Which region has the most clients?",
+     "tags": [],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1160,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many units were ordered per product line, across all orders?",
+     "tags": [
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1176,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "Revenue by product line",
+     "tags": [
+      "definition",
+      "join"
+     ],
+     "status": "answered",
+     "passed": true,
+     "tokens": 1254,
+     "served_by": [
+      "groq/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "What is our average delivery time?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1062,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    },
+    {
+     "question": "How many support tickets did T1 clients open?",
+     "tags": [
+      "decline"
+     ],
+     "status": "declined",
+     "passed": true,
+     "tokens": 1042,
+     "served_by": [
+      "nvidia/openai/gpt-oss-20b"
+     ],
+     "error": null
+    }
+   ]
+  }
+ ]
+}

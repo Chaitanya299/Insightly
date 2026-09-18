@@ -45,7 +45,7 @@ question ───────────────────────�
 ```
 
 The model receives a **schema card** — table names, column names, types, null rates,
-distinct counts, three sample values — and never the rows themselves. (Those sample values
+distinct counts, three sample values (or the full list for a category column with 12 or fewer values) — and never the rows themselves. (Those sample values
 are real data and do reach the model provider; for confidential data that is the part to
 switch off.) This is what makes
 the app work on a 5-million-row file and what makes hallucinated figures structurally
@@ -167,7 +167,22 @@ Building it found two bugs before any model ran, both deterministic and now test
 discovery ignored foreign keys not *named* like keys (it found no joins at all on this data),
 and the schema card showed three sample values, so the fourth status code was invisible to
 every filter. Every checker is validated to pass the correct SQL and fail each trap's wrong
-answer. Results land in [`docs/evals-hard.md`](docs/evals-hard.md):
+answer.
+
+Results ([`docs/evals-hard.md`](docs/evals-hard.md), `gpt-oss-20b` via FreeLLMAPI, 17 questions):
+
+| Configuration | Correct | What it lost |
+|---|---|---|
+| Full system | **17 / 17** | |
+| Without join hints | 17 / 17 | nothing, because the model sees `A-7342` in both sample lists |
+| Without definitions | 12 / 17 | calendar-year and fiscal-year revenue, tier, Europe |
+| Privacy mode | 13 / 17 | the coded filters: cancelled, pending, refunded, Europe |
+| Privacy mode, no join hints | 10 / 17 | the above plus tier, top company and one company's revenue (all need the client join) |
+
+So definitions pay for themselves outright. Join hints pay for themselves in privacy mode,
+where the model can no longer spot matching values. Privacy mode has a price: coded
+categories become guesswork. The router served some answers from Groq's copy of the model
+and some from NVIDIA's (the same open weights on different hosts); the report flags it.
 
 ```bash
 python tests/evals.py --suite hard --provider freellmapi --list-models   # pick one model
@@ -245,10 +260,10 @@ python tests/benchmark.py 1000000
 |---|---|
 | Ingest, clean, type-recover, profile | **~9s** |
 | Query (total / trend / group-by) | **0.00–0.01s** |
-| Prompt sent to the model | **561 chars, ~140 tokens** |
-| The same data as rows in a prompt | ~13,600,000 tokens — **97,476x larger**, and past every context window |
+| Prompt sent to the model | **564 chars, ~140 tokens** |
+| The same data as rows in a prompt | ~13,600,000 tokens — **96,784x larger**, and past every context window |
 
-The schema card is the same 561 characters at 1,000,000 rows as at 900. Row count changes
+The schema card is the same 564 characters at 1,000,000 rows as at 900. Row count changes
 the answer, never the prompt. The rows-in-the-prompt approach would need a prompt about a
 hundred times larger than this model's 131k-token context window. It cannot even run the
 900-row sample: on Groq's free tier the request is rejected before the model sees it

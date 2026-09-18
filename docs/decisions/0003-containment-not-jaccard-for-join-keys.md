@@ -48,3 +48,13 @@ sample data that is not what happened: with join hints removed the model still a
 20/20 (`docs/evals.md`), because the key names are self-explanatory. The failure described
 here needs keys whose names don't match, which the sample files don't have. Until the eval
 set includes such a file, this decision rests on reasoning rather than measurement.
+
+## Update, 2026-09-18: hard suite
+
+The hard suite (`docs/evals-hard.md`) has the mismatched keys: `orders.customer` holds
+`A-7342`, which matches `clients.legacy_ref`, and `clients.client_id` is a decoy. With
+sample values in the prompt, the model finds the join without hints (17/17 either way),
+because it can see `A-7342` on both sides. With privacy mode on, removing the hints costs
+three more questions (13/17 → 10/17): tier revenue, top company and one company's revenue.
+Join hints matter exactly when the model can't see the values, which is the configuration a
+privacy-sensitive customer runs.

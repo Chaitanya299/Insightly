@@ -54,3 +54,10 @@ own default reading of "revenue" (exclude refunds) matches this definition. So t
 has not been shown to change answers on this data. What it changes is who decides. The
 test that would show it working is a definition the model would not guess, such as
 revenue net of discounts.
+
+## Update, 2026-09-18: hard suite
+
+The hard suite defines revenue as gross less discount, completed orders only, with a fiscal
+year starting 1 April. Without the definitions file the model scores 12/17 against 17/17
+with it (`docs/evals-hard.md`). It loses calendar-2024, FY2024, revenue by fiscal year,
+revenue by tier and Europe revenue. The decision is now measured, not just reasoned.

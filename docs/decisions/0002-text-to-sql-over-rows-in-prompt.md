@@ -34,8 +34,8 @@ of a query, so it cannot be invented. The failure mode moves from "wrong number,
 confidently" to "right SQL for the wrong question" — which is visible, because the SQL is
 shown under every answer.
 
-Scale stops mattering. Measured at 1,000,000 rows: the schema card is 561 characters,
-the same 561 characters the 900-row sample produces. The equivalent rows would be roughly
+Scale stops mattering. Measured at 1,000,000 rows: the schema card is 564 characters,
+the same 564 characters the 900-row sample produces. The equivalent rows would be roughly
 13.6M tokens. The row count changes the answer, never the prompt.
 
 Cross-file analysis is a join, and therefore mostly a question of finding the keys
