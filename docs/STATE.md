@@ -28,6 +28,8 @@ graph LR
 - Eval harness with ablation: every component scored by what breaks without it
 - Naive vs full on a 100-row subset (gpt-oss-120b): naive 10/20, full 20/20, 4x the tokens
 - Sample suite re-run on the current system (gpt-oss-20b): same result, `docs/evals-current.md`
+- Premium redesign per DESIGN.md: sidebar journey with a dedicated Upload page, Satoshi/JetBrains Mono,
+  verified stamps (2026-09-18)
 - UI redesign: four views (Ask, Dashboard, Data, Quality); auto dashboard from rule-built SQL;
   usage analytics and eval evidence in-app; CVD-validated chart palette
 - Hard eval suite (17 questions, mismatched keys, non-obvious definitions, coded categories):

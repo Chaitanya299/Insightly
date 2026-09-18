@@ -45,6 +45,10 @@ headcount?"* (it should decline).
 
 ## Features
 
+A sidebar walks through the whole journey, **01 Upload → 02 Ask → 03 Dashboard → 04 Data → 05 Quality**. The visual system (Satoshi + JetBrains Mono, an ink sidebar, a green "verified" stamp on every number DuckDB computed) is specified in [`DESIGN.md`](DESIGN.md).
+
+- **Upload:** drop files or load the samples, then see what was loaded, what was cleaned and how the files link.
+
 - **Ask:** plain-English questions across several files. Each answer comes back as a chart, a table and editable SQL.
 - **Dashboard:** KPIs, the monthly trend and a cross-file breakdown, built from rules, with no model call.
 - **Data:** every column profiled as a labelled mini chart (rows per month, spread, most common values with shares), what was cleaned on import, and how the files connect.

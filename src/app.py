@@ -31,8 +31,12 @@ st.set_page_config(page_title="Insightly", page_icon="📊", layout="wide")
 # The dataviz reference palette: categorical order is fixed and validated for
 # colour-vision deficiency, so series 1 is always blue and hues are never cycled.
 PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
-INK, INK_2, MUTED = "#0b0b0b", "#52514e", "#898781"
-GRID, BASELINE, SURFACE = "#e1e0d9", "#c3c2b7", "#fcfcfb"
+# Tokens from DESIGN.md.
+INK, INK_2, MUTED = "#0E1B2C", "#5B6472", "#8A93A0"
+GRID, BASELINE, SURFACE = "#E3E6E8", "#C9CED3", "#FFFFFF"
+VERIFIED, VERIFIED_TINT = "#0F7B5F", "#E6F2EE"
+BODY_FONT = "Satoshi, system-ui, sans-serif"
+MONO_FONT = "JetBrains Mono, ui-monospace, monospace"
 SAMPLES_SIG = ("samples",)
 ROOT = Path(__file__).parent.parent
 METRICS_PATH = os.getenv("METRICS_PATH", str(ROOT / "config" / "metrics.toml"))
@@ -134,11 +138,11 @@ def render_chart(df: pd.DataFrame, chart: dict, height: int | None = None):
         col = chart["y"]
         value = df[col].iloc[0]
         if pd.isna(value):
-            st.metric(_pretty(col), "—")
+            st.metric(_pretty(col), "—", border=True, width="content")
             return
         prefix = "$" if _money(col) else ""
         text = f"{prefix}{value:,.2f}" if isinstance(value, float) else f"{prefix}{value:,}"
-        st.metric(_pretty(col), text)
+        st.metric(_pretty(col), text, border=True, width="content")
         return
 
     x, y, series = chart.get("x"), chart.get("y"), chart.get("series")
@@ -201,7 +205,7 @@ def render_chart(df: pd.DataFrame, chart: dict, height: int | None = None):
         legend_title_text="",
         legend=dict(orientation="h", y=1.08, x=0, font=dict(color=INK_2)),
         separators=".,",
-        font=dict(family="system-ui, -apple-system, Segoe UI, sans-serif", color=INK_2, size=12),
+        font=dict(family=BODY_FONT, color=INK_2, size=12),
         hoverlabel=dict(bgcolor="white", bordercolor=GRID, font=dict(color=INK)),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -212,9 +216,11 @@ def render_chart(df: pd.DataFrame, chart: dict, height: int | None = None):
         fig.update_traces(line=dict(width=2), marker=dict(size=8, line=dict(width=2, color=SURFACE)))
     if kind not in {"pie"}:
         fig.update_yaxes(gridcolor=GRID, zerolinecolor=BASELINE, linecolor=BASELINE,
-                         tickfont=dict(color=MUTED))
+                         tickfont=dict(color=MUTED, family=MONO_FONT, size=11))
         fig.update_xaxes(gridcolor=GRID, showgrid=False, linecolor=BASELINE,
-                         tickfont=dict(color=MUTED))
+                         tickfont=dict(color=MUTED, family=MONO_FONT, size=11))
+        if kind == "bar":
+            fig.update_traces(textfont=dict(family=MONO_FONT, size=11, color=INK_2))
     st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     if note:
         st.caption(note)
@@ -379,18 +385,22 @@ def load_eval(path: Path) -> pd.DataFrame | None:
 WHY_CSS = """
 <style>
   .why { display:flex; flex-wrap:wrap; align-items:stretch; gap:1rem; margin:.4rem 0 .6rem; }
-  .why-card { flex:1 1 260px; border:1px solid #e1e0d9; border-radius:14px; padding:1.1rem 1.25rem;
-              background:#fff; display:flex; flex-direction:column; gap:.7rem; }
-  .why-card.win { border:2px solid #2a78d6; box-shadow:0 6px 24px rgba(42,120,214,.10); }
-  .why-name { font-weight:700; font-size:1.05rem; color:#0b0b0b; }
-  .why-flow { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.9rem; color:#52514e;
-              background:#f3f2ee; border-radius:10px; padding:.7rem .8rem; line-height:1.7; text-align:center; }
-  .why-score { font-size:2.4rem; font-weight:700; letter-spacing:-.02em; line-height:1; color:#0b0b0b; }
-  .why-score small { font-size:1rem; font-weight:500; color:#52514e; margin-left:.35rem; }
-  .why-bar { height:8px; border-radius:4px; background:#e1e0d9; overflow:hidden; }
-  .why-bar span { display:block; height:100%; border-radius:4px; }
-  .why-list { margin:0; padding-left:1.1rem; color:#52514e; font-size:.88rem; line-height:1.6; }
-  .why-vs { align-self:center; font-weight:700; color:#898781; font-size:.95rem; padding:0 .2rem; }
+  .why-card { flex:1 1 260px; border:1px solid #E3E6E8; border-radius:14px; padding:1.25rem 1.4rem;
+              background:#FFFFFF; display:flex; flex-direction:column; gap:.8rem; }
+  .why-card.win { border:1.5px solid #2A78D6; box-shadow:0 6px 24px rgba(42,120,214,.10); }
+  .why-name { font-weight:700; font-size:1.05rem; color:#0E1B2C; }
+  .why-flow { font-family:'JetBrains Mono',ui-monospace,monospace; font-size:.85rem; color:#5B6472;
+              background:#F6F7F5; border-radius:10px; padding:.8rem; line-height:1.8; text-align:center; }
+  .why-score { font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;
+               font-size:2.3rem; font-weight:600; letter-spacing:-.03em; line-height:1; color:#0E1B2C; }
+  .why-score small { font-family:Satoshi,sans-serif; font-size:.95rem; font-weight:500; color:#5B6472; margin-left:.4rem; }
+  .why-bar { height:6px; border-radius:3px; background:#EEF0EE; overflow:hidden; }
+  .why-bar span { display:block; height:100%; border-radius:3px; animation:why-fill .7s ease-out both; }
+  @keyframes why-fill { from { width:0 } }
+  @media (prefers-reduced-motion: reduce) { .why-bar span { animation:none } }
+  .why-list { margin:0; padding-left:1.1rem; color:#5B6472; font-size:.9rem; line-height:1.65; }
+  .why-vs { align-self:center; font-family:'JetBrains Mono',monospace; font-size:.8rem;
+            letter-spacing:.08em; color:#8A93A0; padding:0 .2rem; }
 </style>
 """
 
@@ -431,7 +441,8 @@ def render_why() -> None:
     m = naive_vs_full()
     if m is None:
         return
-    st.markdown("#### Why Insightly?")
+    st.markdown("### Why Insightly?")
+
     def n(k, one, many):
         return f"{m[k]} {one if m[k] == 1 else many}" if m[k] else ""
 
@@ -448,7 +459,7 @@ def render_why() -> None:
                    "Prompt stays 564 characters at 1,000,000 rows"]
 
     def card(name, flow, score, points, win):
-        color = "#2a78d6" if win else "#e34948"
+        color = "#2A78D6" if win else "#C23B3B"
         items = "".join(f"<li>{p}</li>" for p in points if p)
         return (f'<div class="why-card{" win" if win else ""}">'
                 f'<div class="why-name">{name}</div><div class="why-flow">{flow}</div>'
@@ -517,6 +528,7 @@ def render_answer(ss, idx: int, answer: engine.Answer):
             f"**{name.replace('_', ' ')}** ({meanings.get(name, '')})" for name in answer.metrics_used))
 
     if answer.df is not None and not answer.df.empty:
+        stamp(f"computed by DuckDB · {len(answer.df):,} row{'s' if len(answer.df) != 1 else ''}")
         shown = ordered_for_display(answer.df, answer.chart)
         if answer.chart:
             render_chart(shown, answer.chart)
@@ -562,98 +574,130 @@ def render_answer(ss, idx: int, answer: engine.Answer):
 
 ss = state()
 
-with st.sidebar:
-    st.subheader("Data")
-    uploads = st.file_uploader(
-        "CSV or Excel files",
-        type=["csv", "xlsx", "xls", "xlsm"],
-        accept_multiple_files=True,
-        help="Upload several related files — questions can span all of them.",
-    )
-    if uploads:
-        signature = tuple(sorted((u.name, u.size) for u in uploads))
-        if signature != ss.signature:
-            with st.spinner("Reading and profiling…"):
-                rebuild(ss, uploads)
-            ss.signature = signature
-    elif ss.signature not in (None, SAMPLES_SIG):
-        # the uploader was cleared -- drop everything except a sample session
-        ss.signature, ss.tables, ss.joins, ss.answers, ss.problems = None, [], [], [], []
-
-    samples = sorted((Path(__file__).parent.parent / "data" / "samples").glob("*.*"))
-    if samples and not uploads:
-        if st.button("Load sample files", width="stretch"):
-            with st.spinner("Reading and profiling…"):
-                rebuild(ss, samples)
-            ss.signature = SAMPLES_SIG
-            st.rerun()
-        st.caption(" · ".join(f.name for f in samples))
-
-    for problem in ss.problems:
-        st.warning(problem, icon="⚠️")
-
-    # The detail lives in the main overview now -- two places showing the same
-    # schema is worse than one. This is just a receipt for what loaded.
-    if ss.tables:
-        st.caption(
-            f"**{len(ss.tables)} table(s)**, "
-            f"{sum(t.rows for t in ss.tables):,} rows total\n\n"
-            + "\n".join(f"- `{t.name}` · {t.rows:,} rows" for t in ss.tables)
-        )
-    if not SEND_SAMPLES:
-        st.caption("🔒 **Privacy mode** — only column names and types are sent to the "
-                   "model. No data values leave this machine.")
-
-
 st.markdown(
     """
     <style>
-      .block-container { padding-top: 3.4rem; max-width: 1180px; }
-      .ins-head { display:flex; flex-wrap:wrap; align-items:baseline; column-gap:.75rem; row-gap:.1rem; margin-bottom:.3rem; }
-      .ins-logo { font-size:1.55rem; font-weight:700; letter-spacing:-.02em; color:#0b0b0b; }
-      .ins-mark { color:#2a78d6; }
-      .ins-tag { color:#52514e; font-size:.95rem; }
-      .ins-pill { display:inline-block; font-size:.78rem; color:#52514e; border:1px solid #e1e0d9;
-                  border-radius:999px; padding:.1rem .6rem; margin-right:.35rem; background:#fff; }
-      div[data-testid="stMetric"] { background:#fff; }
+      .block-container { padding-top: 2.6rem; max-width: 1200px; }
+      h1 { letter-spacing: -.02em; }
+      [data-testid="stMetricValue"] { font-family: 'JetBrains Mono', ui-monospace, monospace;
+                                      font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+      [data-testid="stMetric"], [class*="st-key-card"] { background: #FFFFFF; }
+      .page-lede { color: #5B6472; font-size: 1.02rem; margin: -.6rem 0 1.4rem; max-width: 46rem; }
+      .stamp { display: inline-block; font-family: 'JetBrains Mono', ui-monospace, monospace;
+               font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: #0F7B5F;
+               background: #E6F2EE; border-radius: 999px; padding: .22rem .7rem; margin: .1rem 0 .5rem; }
+      .brand { font-weight: 700; font-size: 1.35rem; letter-spacing: -.02em; color: #FFFFFF;
+               margin: .2rem 0 .1rem; }
+      .brand b { color: #6DA7EC; font-weight: 700; }
+      .brand-sub { color: #8D99AB; font-size: .82rem; line-height: 1.45; margin-bottom: 1.1rem; }
+      .side-label { font-family: 'JetBrains Mono', monospace; font-size: .66rem; letter-spacing: .1em;
+                    text-transform: uppercase; color: #8D99AB; margin: 1.2rem 0 .35rem; }
+      .receipt { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: #C9D2DD;
+                 line-height: 1.75; }
+      .receipt span { color: #8D99AB; }
+      [data-testid="stSidebar"] [data-testid="stPageLink"] a { border-radius: 10px; padding: .15rem .5rem; }
+      [data-testid="stSidebar"] [data-testid="stPageLink"] p { font-size: .95rem; }
+      .file-name { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: .95rem; }
+      .file-meta { font-family: 'JetBrains Mono', monospace; font-size: .8rem; color: #5B6472; }
     </style>
-    <div class="ins-head">
-      <span class="ins-logo"><span class="ins-mark">◆</span> Insightly</span>
-      <span class="ins-tag">Ask your data a question. Every number comes from SQL you can read.</span>
-    </div>
     """,
     unsafe_allow_html=True,
 )
 
-if not ss.tables:
+
+def stamp(text: str) -> None:
+    """The mark that a number came from DuckDB, not from the model (DESIGN.md: green means verified)."""
+    st.markdown(f'<span class="stamp">✓ verified · {text}</span>', unsafe_allow_html=True)
+
+
+def page_header(title: str, lede: str) -> None:
+    st.title(title)
+    st.markdown(f'<p class="page-lede">{lede}</p>', unsafe_allow_html=True)
+
+
+def needs_data() -> bool:
+    """Empty state for every page but Upload: say what to do next, and link to it."""
+    if ss.tables:
+        return False
+    with st.container(border=True, key="card_empty"):
+        st.markdown("**No data loaded yet.** Upload CSV or Excel files, or load the samples, "
+                    "and this page fills in.")
+        st.page_link(PAGES["upload"], label="Go to 01 · Upload", icon=":material/arrow_forward:")
+    return True
+
+
+def page_upload() -> None:
+    page_header("Upload your files",
+                "Add several related CSV or Excel files. Each sheet becomes a table, messy money "
+                "and dates are cleaned, and the links between files are found automatically.")
+    left, right = st.columns([1.35, 1], gap="large")
+    with left:
+        uploads = st.file_uploader(
+            "CSV or Excel files",
+            type=["csv", "xlsx", "xls", "xlsm"],
+            accept_multiple_files=True,
+            help="Upload several related files: one question can span all of them.",
+        )
+        if uploads:
+            signature = tuple(sorted((u.name, u.size) for u in uploads))
+            if signature != ss.signature:
+                with st.spinner("Reading, cleaning and profiling…"):
+                    rebuild(ss, uploads)
+                ss.signature = signature
+        # ponytail: the uploader forgets its files when you leave this page, so an empty
+        # uploader is not a "clear" signal -- clearing is an explicit button instead.
+        samples = sorted((ROOT / "data" / "samples").glob("*.*"))
+        b1, b2 = st.columns(2)
+        if samples and b1.button("Load sample files", width="stretch",
+                                 help=" · ".join(f.name for f in samples)):
+            with st.spinner("Reading, cleaning and profiling…"):
+                rebuild(ss, samples)
+            ss.signature = SAMPLES_SIG
+            st.rerun()
+        if ss.tables and b2.button("Clear loaded data", width="stretch"):
+            ss.signature, ss.tables, ss.joins, ss.answers, ss.problems, ss.metrics = None, [], [], [], [], []
+            ss.con = engine.connect()
+            st.rerun()
+        for problem in ss.problems:
+            st.warning(problem, icon=":material/warning:")
+    with right:
+        st.markdown("##### What happens to your files")
+        st.markdown(
+            "1. **Cleaned.** Headers are normalised, `$1,234.50` becomes a number, and mixed "
+            "date formats become real dates.\n"
+            "2. **Connected.** Matching columns across files are found, so one question can "
+            "span several of them.\n"
+            "3. **Kept here.** The model sees column names, types and a few sample values, "
+            "never the rows."
+            + (" Privacy mode is on, so no values at all." if not SEND_SAMPLES else "")
+        )
+
+    if ss.tables:
+        st.markdown("### What was loaded")
+        stamp(f"{len(ss.tables)} tables · {sum(t.rows for t in ss.tables):,} rows · "
+              f"{len(ss.joins)} links between files")
+        cols = st.columns(min(3, len(ss.tables)))
+        for i, t in enumerate(ss.tables):
+            with cols[i % len(cols)].container(border=True, key=f"card_file_{i}"):
+                st.markdown(f'<div class="file-name">{t.name}</div>'
+                            f'<div class="file-meta">{t.source} · {t.rows:,} rows · '
+                            f'{len(t.columns)} columns</div>', unsafe_allow_html=True)
+                cleaned = [n for n in t.notes if "renamed" not in n]
+                st.caption("Cleaned: " + "; ".join(cleaned) if cleaned else "Nothing needed cleaning.")
+        if ss.joins:
+            st.caption("Linked: " + " · ".join(f"`{j['left']}` = `{j['right']}`" for j in ss.joins[:6]))
+        c1, c2, c3 = st.columns([1, 1, 2])
+        c1.page_link(PAGES["ask"], label="Ask a question", icon=":material/arrow_forward:")
+        c2.page_link(PAGES["dashboard"], label="See the dashboard", icon=":material/arrow_forward:")
+    st.divider()
     render_why()
-    st.markdown("#### How it works")
-    a, b, c = st.columns(3)
-    for col, title, body in [
-        (a, "1 · Upload", "Drop several CSV or Excel files in the sidebar, or load the samples. "
-                          "Each sheet becomes a table; messy money and dates are cleaned."),
-        (b, "2 · Ask", "Ask in plain English. The model writes SQL; DuckDB computes the answer. "
-                       "The model never sees your rows."),
-        (c, "3 · Check", "Every answer shows its chart, table and SQL. Edit the SQL and re-run it "
-                         "to check the machine rather than trust it."),
-    ]:
-        with col.container(border=True):
-            st.markdown(f"**{title}**")
-            st.caption(body)
-    st.stop()
-
-pills = [f"{len(ss.tables)} tables", f"{sum(t.rows for t in ss.tables):,} rows",
-         f"{len(ss.joins)} joins found", f"{len(ss.metrics)} agreed definitions",
-         "🔒 privacy mode" if not SEND_SAMPLES else "model: " + engine.MODEL.split("/")[-1]]
-st.markdown("".join(f'<span class="ins-pill">{p}</span>' for p in pills), unsafe_allow_html=True)
-st.markdown("")
-
-VIEWS = ["💬 Ask", "📊 Dashboard", "🗂 Data", "✅ Quality"]
-view = st.segmented_control("View", VIEWS, default=VIEWS[0], key="view", required=True,
-                            label_visibility="collapsed") or VIEWS[0]
 
 
 def view_dashboard() -> None:
+    page_header("Dashboard", "Built from rules, not the model: the headline numbers, the monthly "
+                "trend and a breakdown that can reach across files. Every query is shown below.")
+    if needs_data():
+        return
     facts = dashboard.fact_tables(ss.tables, ss.metrics)
     if not facts:
         st.info("No numeric or date columns to chart. Ask a question instead.")
@@ -715,17 +759,18 @@ def view_dashboard() -> None:
                   f"{share:.0%} of total", delta_color="off", delta_arrow="off", border=True)
     else:
         k4.metric("Rows", f"{int(kpi['row_count'].iloc[0]):,}", border=True)
+    stamp("computed by DuckDB · queries below")
     if measure.meaning:
         st.caption(f"📐 **{_pretty(measure.label)}** uses the agreed definition: {measure.meaning}")
 
     left, right = st.columns([1.35, 1])
-    with left.container(border=True):
+    with left.container(border=True, key="card_trend"):
         st.markdown(f"**{_pretty(measure.label)} by month**" if trend is not None else "**Trend**")
         if trend is not None and not trend.empty:
             render_chart(trend, {"type": "line", "x": "month", "y": measure.label}, height=320)
         else:
             st.caption("No date column in this table.")
-    with right.container(border=True):
+    with right.container(border=True, key="card_split"):
         st.markdown(f"**By {_pretty(dim.label).lower()}**" if dim else "**Breakdown**")
         if split is not None and not split.empty:
             chart = engine.pick_chart(split, {"type": "bar", "x": dim.label, "y": measure.label})
@@ -804,6 +849,10 @@ def render_definitions() -> None:
 
 
 def view_data() -> None:
+    page_header("Your data", "What was loaded, how it was cleaned, how the files connect, and "
+                "the definitions every answer must use.")
+    if needs_data():
+        return
     render_overview(ss.tables)
     st.markdown("#### How these files connect")
     st.caption("Found by matching values across files, so one question can span several of them.")
@@ -817,6 +866,10 @@ def view_data() -> None:
 
 
 def view_ask() -> None:
+    page_header("Ask a question", "Plain English in; a chart, a table and the SQL behind them "
+                "out. The model writes the query and DuckDB computes every number.")
+    if needs_data():
+        return
     if not ss.suggestions and not ss.answers:
         try:
             ss.suggestions = engine.suggest_questions(ss.schema, ss.joins_text)
@@ -862,15 +915,43 @@ def view_ask() -> None:
         st.rerun()
 
 
-if view == VIEWS[1]:
-    view_dashboard()
-elif view == VIEWS[2]:
-    view_data()
-elif view == VIEWS[3]:
+def view_quality() -> None:
+    page_header("Quality", "Measured, not claimed: what each component is worth, how the "
+                "naive approach compares, and how the app is being used.")
     render_why()
     st.divider()
     render_evidence()
     st.divider()
     render_usage()
-else:
-    view_ask()
+
+
+PAGES = {
+    "upload": st.Page(page_upload, title="Upload", url_path="upload", default=True),
+    "ask": st.Page(view_ask, title="Ask", url_path="ask"),
+    "dashboard": st.Page(view_dashboard, title="Dashboard", url_path="dashboard"),
+    "data": st.Page(view_data, title="Data", url_path="data"),
+    "quality": st.Page(view_quality, title="Quality", url_path="quality"),
+}
+current = st.navigation(list(PAGES.values()), position="hidden")
+
+with st.sidebar:
+    st.markdown('<div class="brand"><b>◆</b> Insightly</div>'
+                '<div class="brand-sub">Ask your data a question. Every number comes from SQL '
+                'you can read.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">Your journey</div>', unsafe_allow_html=True)
+    for i, page in enumerate(PAGES.values(), 1):
+        st.page_link(page, label=f"{i:02d}   {page.title}")
+    st.markdown('<div class="side-label">Loaded</div>', unsafe_allow_html=True)
+    if ss.tables:
+        st.markdown('<div class="receipt">' + "<br>".join(
+            f"{t.name} <span>· {t.rows:,} rows</span>" for t in ss.tables)
+            + f"<br><span>{len(ss.joins)} links · {len(ss.metrics)} definitions</span></div>",
+            unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="receipt"><span>Nothing yet</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="side-label">Engine</div><div class="receipt">'
+                f'{engine.MODEL.split("/")[-1]} <span>writes SQL</span><br>DuckDB <span>computes</span>'
+                + ("<br>🔒 privacy mode <span>· no values sent</span>" if not SEND_SAMPLES else "")
+                + "</div>", unsafe_allow_html=True)
+
+current.run()

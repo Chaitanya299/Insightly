@@ -16,7 +16,7 @@ process, no build step.
 | `src/profiling.py` | Reading files, cleaning headers, recovering types, profiling columns, discovering join keys, rendering the schema card | Talk to the model. Execute a generated query. |
 | `src/engine.py` | Prompt construction, the model call, the SQL guard, execution, the repair retry, chart selection | Read a file. Touch Streamlit. |
 | `src/dashboard.py` | Rule-built KPI, trend and breakdown SQL for the Dashboard view, using the agreed definitions | Call the model. |
-| `src/app.py` | Session state, the four views (Ask, Dashboard, Data, Quality), the editable-SQL loop | Contain analysis logic. |
+| `src/app.py` | Session state, five sidebar pages (Upload, Ask, Dashboard, Data, Quality) via `st.navigation`, the editable-SQL loop | Contain analysis logic. |
 | `config/metrics.toml` | The customer's definitions ("revenue is net of refunds") | Change per deployment without code |
 
 The split matters because `profiling` and `engine` are both importable and testable

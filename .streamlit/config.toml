@@ -1,18 +1,36 @@
 [server]
 maxUploadSize = 500
 
+# Tokens from DESIGN.md. Change them there first.
 [theme]
 base = "light"
-primaryColor = "#2a78d6"
-backgroundColor = "#fcfcfb"
-secondaryBackgroundColor = "#f3f2ee"
-textColor = "#0b0b0b"
-linkColor = "#256abf"
-font = "system-ui, -apple-system, 'Segoe UI', sans-serif"
+primaryColor = "#2A78D6"
+backgroundColor = "#F6F7F5"
+secondaryBackgroundColor = "#EEF0EE"
+textColor = "#0E1B2C"
+linkColor = "#256ABF"
+borderColor = "#E3E6E8"
+dataframeBorderColor = "#E3E6E8"
+dataframeHeaderBackgroundColor = "#F6F7F5"
+showWidgetBorder = true
+baseRadius = "10px"
+font = "Satoshi:https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap, sans-serif"
+headingFont = "Satoshi:https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap, sans-serif"
+codeFont = "JetBrains Mono:https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap, monospace"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
 metricValueFontWeight = 600
-metricValueFontSize = "1.75rem"
+metricValueFontSize = "1.7rem"
+greenColor = "#0F7B5F"
+greenBackgroundColor = "#E6F2EE"
 # The validated categorical order from the dataviz reference palette (fixed, never cycled).
 chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
 
 [theme.sidebar]
-backgroundColor = "#f3f2ee"
+backgroundColor = "#0E1B2C"
+secondaryBackgroundColor = "#17273B"
+textColor = "#E8ECF1"
+borderColor = "#23344A"
+primaryColor = "#6DA7EC"
+
+[client]
+toolbarMode = "minimal"
