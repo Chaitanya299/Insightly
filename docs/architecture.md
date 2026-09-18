@@ -81,7 +81,7 @@ state lives in one process's memory, so scaling out needs sticky sessions.
 
 ## Testing
 
-`tests/test_engine.py` (22 tests) runs with a stubbed model and needs no API key.
+`tests/test_engine.py` (23 tests) runs with a stubbed model and needs no API key.
 `tests/test_live.py` (5 assertions) runs against the real model and skips without one —
 it exists because a stub tests the plumbing and only the real model tests the prompt.
 `tests/ground_truth.py` recomputes the demo answers in pandas through a different code

@@ -85,7 +85,7 @@ What each component is worth. "Without it" is the score with that one component 
 | Hard data, 17 questions (decoy keys, coded categories, fiscal year) | **17 / 17** (gpt-oss-20b) | [`docs/evals-hard.md`](docs/evals-hard.md) |
 
 ```bash
-python tests/test_engine.py   # 22 tests, no API key, runs in CI
+python tests/test_engine.py   # 23 tests, no API key, runs in CI
 python tests/test_live.py     # 5 tests against the real model
 python tests/evals.py         # ablation study (--suite hard for the hard set)
 ```
