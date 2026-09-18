@@ -40,3 +40,11 @@ Containment is asymmetric and that asymmetry is deliberate, but it does mean a c
 whose values happen to be a subset of another unrelated column will score high on the
 value signal alone — hence the name weighting and the reported score in the UI, so a
 human can see and discount a bad hint rather than having it silently applied.
+
+## Update, 2026-09-18: measured
+
+The Context above asserts that asking the model to guess the keys fails badly. On the
+sample data that is not what happened: with join hints removed the model still answered
+20/20 (`docs/evals.md`), because the key names are self-explanatory. The failure described
+here needs keys whose names don't match, which the sample files don't have. Until the eval
+set includes such a file, this decision rests on reasoning rather than measurement.

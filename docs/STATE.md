@@ -27,12 +27,16 @@ graph LR
 - Privacy mode (`SEND_SAMPLES=false`), per-question JSONL trace with an in-app panel
 - Eval harness with ablation: every component scored by what breaks without it
 - CI running the stubbed suite on every push
-- 17 stubbed assertions, 5 live assertions, 1M-row benchmark (~9s ingest, 561-char prompt)
+- 18 stubbed assertions, 5 live assertions, 1M-row benchmark (~9s ingest, 561-char prompt)
 
 ## In progress
 Nothing.
 
 ## Blocked
+Naive-vs-full comparison on the 100-row subset: incomplete. The eval run exhausted Groq's
+free-tier daily token quota; the harness records the remainder as not run. Re-run with
+`python tests/evals.py --subset-only --merge` after the quota resets.
+
 Codex second-opinion review — the ChatGPT account's Codex quota is exhausted until
 2026-09-28. It read every source file, then hit the limit before producing findings.
 The review in this repo is therefore self-review, not cross-model.

@@ -46,3 +46,11 @@ rather than passing silently. See `docs/evals.md`.
 
 A fuller semantic layer would compile definitions into SQL rather than asking the model
 to copy them. That is the next step if a customer's definitions grow past a handful.
+
+## Update, 2026-09-18: measured
+
+With the definitions file removed, the model still scored 20/20 (`docs/evals.md`): its
+own default reading of "revenue" (exclude refunds) matches this definition. So the file
+has not been shown to change answers on this data. What it changes is who decides. The
+test that would show it working is a definition the model would not guess, such as
+revenue net of discounts.
