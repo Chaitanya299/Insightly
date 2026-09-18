@@ -15,7 +15,8 @@ process, no build step.
 |---|---|---|
 | `src/profiling.py` | Reading files, cleaning headers, recovering types, profiling columns, discovering join keys, rendering the schema card | Talk to the model. Execute a generated query. |
 | `src/engine.py` | Prompt construction, the model call, the SQL guard, execution, the repair retry, chart selection | Read a file. Touch Streamlit. |
-| `src/app.py` | Session state, layout, rendering, the editable-SQL loop | Contain analysis logic. |
+| `src/dashboard.py` | Rule-built KPI, trend and breakdown SQL for the Dashboard view, using the agreed definitions | Call the model. |
+| `src/app.py` | Session state, the four views (Ask, Dashboard, Data, Quality), the editable-SQL loop | Contain analysis logic. |
 | `config/metrics.toml` | The customer's definitions ("revenue is net of refunds") | Change per deployment without code |
 
 The split matters because `profiling` and `engine` are both importable and testable
@@ -80,7 +81,7 @@ state lives in one process's memory, so scaling out needs sticky sessions.
 
 ## Testing
 
-`tests/test_engine.py` (21 tests) runs with a stubbed model and needs no API key.
+`tests/test_engine.py` (22 tests) runs with a stubbed model and needs no API key.
 `tests/test_live.py` (5 assertions) runs against the real model and skips without one —
 it exists because a stub tests the plumbing and only the real model tests the prompt.
 `tests/ground_truth.py` recomputes the demo answers in pandas through a different code

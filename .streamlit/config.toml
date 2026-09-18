@@ -3,4 +3,16 @@ maxUploadSize = 500
 
 [theme]
 base = "light"
-primaryColor = "#4C78A8"
+primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3f2ee"
+textColor = "#0b0b0b"
+linkColor = "#256abf"
+font = "system-ui, -apple-system, 'Segoe UI', sans-serif"
+metricValueFontWeight = 600
+metricValueFontSize = "1.75rem"
+# The validated categorical order from the dataviz reference palette (fixed, never cycled).
+chartCategoricalColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
+
+[theme.sidebar]
+backgroundColor = "#f3f2ee"

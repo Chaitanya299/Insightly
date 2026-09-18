@@ -1,315 +1,194 @@
 # Insightly
 
-Ask your data a question.
+AI-powered data Q&A for CSV and Excel files.
 
-Upload CSV/Excel files, ask analytical questions in plain English, get answers you can verify.
+Upload several related files, ask questions in plain English, and get answers you can
+check: every number on screen comes from a SQL query you can read, edit and re-run.
 
-The model writes SQL. **DuckDB computes the numbers.** The model sees the schema and a
-few sample values, never the rows, and results are never sent back to it — so it cannot
-invent a figure, and the query behind every answer is shown, editable, and re-runnable.
+> **Demo:** [Demo GIF/video]
 
-## Quick start
+## Quick Start
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # then add a free key from https://console.groq.com/keys
+cp .env.example .env        # add a free key from https://console.groq.com/keys
 streamlit run src/app.py
 ```
 
-Open http://localhost:8501 and click **Load sample files** in the sidebar, or upload your own.
+Open http://localhost:8501 and click **Load sample files**, or upload your own.
+Try *"average order value by region"*, *"revenue by month in 2024"*, or *"what's our
+headcount?"* (it should decline: there is no employee data).
 
-## Tech stack
-
-| Layer | Choice | Why |
-|---|---|---|
-| Model | **gpt-oss-120b** (Apache-2.0 open weights) via Groq | Strong SQL generation, free tier, ~1s latency. Swap with `GROQ_MODEL` (`qwen/qwen3.8-27b` also works), or point at Ollama — the model only ever returns JSON. |
-| Compute | **DuckDB** in-memory | Real SQL over the uploaded files. Cross-file questions are joins, not prompt engineering. Handles millions of rows. |
-| Ingestion | **pandas** + openpyxl | Type recovery from messy real-world files. |
-| UI | **Streamlit** + Plotly | Upload, chat and charts without spending the budget on plumbing. |
-
-~870 lines across three source files.
-
-## How it works
+## What makes it different
 
 ```
-upload ─► pandas: clean headers, recover types ─► DuckDB tables (one per file/sheet)
-                                                        │
-                                            schema card + detected join keys
-                                                        │
-question ───────────────────────────────────────────────┴──► gpt-oss-120b
-                                                        │
-                                          {sql, chart, explanation}
-                                                        │
-                                   guard ─► execute ─► error? one repair retry
-                                                        │
-                                     DataFrame ─► chart picker ─► answer + editable SQL
+LLM    → writes SQL          (sees the schema, never the rows)
+DuckDB → computes the answer (deterministic, exact, any size)
 ```
 
-The model receives a **schema card** — table names, column names, types, null rates,
-distinct counts, three sample values (or the full list for a category column with 12 or fewer values) — and never the rows themselves. (Those sample values
-are real data and do reach the model provider; for confidential data that is the part to
-switch off.) This is what makes
-the app work on a 5-million-row file and what makes hallucinated figures structurally
-impossible: every number is the output of a query you can read.
+The obvious build pastes the spreadsheet into the prompt and lets the model do arithmetic
+in its head. It can't hold a real file, can't reliably join two, and states wrong numbers
+with confidence. Here the model only writes a query. It never sees the rows or its own
+results, so it cannot invent a figure.
 
-## What this does beyond calling an LLM
+Measured on the same 100 rows, with answers computed independently in pandas:
 
-**1. Verifiable answers.** Text-to-SQL instead of rows-in-the-prompt. The SQL appears
-under every answer in an editable box with a Re-run button — when the model misreads a
-question, you see exactly where and fix it in place instead of arguing with a chatbot.
-
-**2. Messy-data handling.** Real CSVs are where naive versions break. On import the app
-normalises headers (`Order Date ` → `order_date`), recovers numbers from `$1,234.50`,
-`15%` and `(99)` → `-99`, and parses dates. Everything it changed is listed in the sidebar.
-
-The date handling is the one worth calling out. `data/samples/sales.csv` mixes
-`2024-11-02`, `20/05/2024` and `Jun 03, 2025` in one column. `03/05/2024` parses as either
-3 May or 5 March and **both readings succeed on 100% of rows** — a naive parser picks one
-silently and every monthly trend is quietly wrong. The app infers orientation from the
-rows that *can't* be ambiguous (any leading value > 12 means the column is day-first),
-applies it only to the short ambiguous dates so ISO rows aren't corrupted, and says what
-it concluded. If a column is genuinely ambiguous it says that too.
-
-**3. Cross-file join discovery.** Before any question is asked, the app scores column
-pairs across files by **containment** — overlap over the smaller side, not Jaccard,
-because a foreign key is many-to-one and 900 orders against 120 customers has near-zero
-Jaccard. Detected keys go into the prompt as explicit hints.
-
-Measured honestly: on the sample data the hints made **no difference** — 20/20 with and
-without them — because the key names are obvious (`customer_id` → `id`, `sku` → `sku`) and
-the model finds them unaided. Hints exist for the case these files don't contain: keys
-whose names don't line up (`cust_ref` → `id`), where a wrong guess returns zero rows that
-look like a real answer. The eval set needs a file like that before this component is
-proven.
-
-**4. Guardrails and self-repair.** Generated SQL is untrusted input: single statement,
-`SELECT`/`WITH` only, DDL and file-reading functions rejected, results bounded. The
-DuckDB connection itself runs with `enable_external_access=false`, so
-`SELECT * FROM read_csv('/etc/passwd')` fails at the engine, not just at the regex.
-When a query errors, the engine feeds DuckDB's own error message back to the model for
-exactly one retry and labels the answer as repaired.
-
-**5. A picture of what you uploaded.** Before any question, every column is profiled into
-a mini chart: where the numbers cluster, whether the dates have a hole in them, which
-categories dominate, what share is empty. It is the fastest way to see that a file was
-read correctly — and in the sample data the `status` column's two bars show the refund
-proportion at a glance, which is exactly the thing that makes "total revenue" ambiguous.
-
-Columns that would produce a meaningless picture are left blank rather than filled: an
-`id` has no distribution worth drawing, and twenty product names in twenty rows would be
-twenty bars of height one. Profiling samples at 50,000 rows, so a 1M-row file costs the
-same as a small one.
-
-**6. Survives bad files.** Each upload is isolated, so one unreadable file doesn't take
-the session down with it — drop four good CSVs and one truncated export and you get four
-tables plus a plain-English note about the fifth ("malformed CSV (unclosed quote, or rows
-with differing column counts)"), not a traceback that loses all five.
-
-**7. Charts from result shape.** The chart type is decided from what came back — one
-number is a metric, date + numeric is a line, categories are a bar. The model may suggest
-a chart, but it saw the schema, not the result, so its suggestion goes through the same
-checks as the fallback: a suggested bar chart of 108 named customers becomes a ranked
-horizontal bar of the top 25 with a caption saying so; a 20-slice pie becomes a bar; and
-an `id` column never becomes an axis, because an id is a number but not a quantity.
-
-Bars are sorted by value, labelled with their values (a zero baseline is honest but makes
-$2,481 and $2,197 look identical), and flipped horizontal when the labels are long. Money
-columns are detected by name and formatted as currency in the axis, the labels and the
-table. The chart and the table under it share one ordering — the same numbers in two
-different orders on one screen reads as a bug.
-
-**8. Declining.** Asked something the data can't answer, the app says what's missing
-rather than inventing a column.
-
-## Measuring the delta
-
-`python tests/evals.py` asks 20 questions whose answers are computed independently in
-pandas, first against the full system, then with one component switched off at a time.
-Full results: [`docs/evals.md`](docs/evals.md).
-
-| Configuration | Correct |
-|---|---|
-| Full system | **20 / 20** |
-| Without type recovery | **16 / 20** — all four monthly questions fail |
-| Without date-orientation detection | **16 / 20** — the same four, now silently wrong |
-| Without join hints | 20 / 20 |
-| Without agreed definitions | 20 / 20 |
-| Privacy mode (no sample values sent) | 20 / 20 |
-
-**What this proves:** type recovery and date detection each carry four questions. The
-date result is the one to note. Without detection the model still *answers* all four
-monthly questions, with confident, wrong totals, because `03/05/2024` was read
-as 5 March. No error, nothing on screen to suggest a problem.
-
-**What it doesn't prove:** join hints, definitions and privacy mode made no difference
-here. The sample files have obvious key names, the model's default reading of revenue
-matches the definition, and the category values are spelled the obvious way. Those
-components guard against data this set doesn't contain yet. That is a gap in the eval set,
-reported rather than hidden.
-
-Re-run on the current system with `gpt-oss-20b` (the hard suite's model), the pattern
-holds: full 20/20, type recovery and date detection each −4, definitions −1, the rest ±0
-([`docs/evals-current.md`](docs/evals-current.md)).
-
-**The naive baseline** (CSV text pasted into the prompt) can't run on these files at all:
-Groq rejects the request as too large (`413`). So it gets its best case, a 100-row subset,
-and the full system answers the same 20 questions on the same rows:
-
-| On the 100-row subset | Correct | Tokens / question |
+| | Correct | Tokens / question |
 |---|---|---|
-| Full system | **20 / 20** | 1,504 |
-| Naive (rows in the prompt) | 10 / 20 | 6,040 |
+| **Insightly** (LLM → SQL → DuckDB) | **20 / 20** | 1,504 |
+| Naive (rows pasted into the prompt) | 10 / 20 | 6,040 |
 
-Of the naive misses, three are wrong numbers stated confidently, six are replies that
-aren't valid JSON, and one declines a question the data answers. Four times the tokens, half the accuracy, on data 1% of the size.
+On the full 900-row sample the naive approach can't run at all: the API rejects the
+request as too large (`413`). Insightly's prompt is **564 characters at 900 rows and at
+1,000,000 rows**. The row count changes the answer, never the prompt.
 
-### The hard suite
+## Features
 
-The sample data turned out too easy to test three of the components, so
-[`data/evals/hard/`](data/evals/hard/) is built so that each one is the only thing standing
-between the model and a wrong answer:
+**Four views**
+- **💬 Ask**: chat with your data. Each answer shows a chart, the table, and the SQL behind it in an editable box with **Re-run** and **Download CSV**.
+- **📊 Dashboard**: a no-LLM dashboard built automatically from the files: headline KPIs with a sparkline, latest month versus the previous one, best month, top category, a monthly trend, and a breakdown that can reach across files through a detected join. The SQL behind it is one click away.
+- **🗂 Data**: every column profiled as a mini chart (distribution, time coverage, top values), plus what was cleaned on import, the agreed definitions, and how the files connect.
+- **✅ Quality**: the eval evidence (what each component is worth) and live usage analytics: answer rate, latency, tokens per question, and every question with its SQL.
 
-| Trap | What the data does | Tests |
+**Under the hood**
+- **Multi-file upload**, CSV and Excel. Each sheet becomes a table, and one broken file never takes down the others.
+- **Messy-data repair**: `$1,234.50`, `15%` and `(99)` become numbers, and headers are normalised. Mixed date formats become real dates, with **day-first/month-first detected** instead of guessed.
+- **Cross-file joins found automatically**, scored by containment. This works even when key names don't match (`orders.customer` ↔ `clients.legacy_ref`).
+- **Agreed business definitions** in `config/metrics.toml` (e.g. *revenue = completed orders only*). The chat and the dashboard both use them, and every answer that relies on one says so.
+- **Declines** questions the data can't answer instead of inventing a column.
+- **Self-repair**: a failing query is retried once with DuckDB's exact error.
+- **Charts chosen from the result's shape**, with the model's suggestion sanity-checked. There are no pies with twenty slices and no ids used as measures. Bars are ranked and labelled, and money is formatted as currency.
+- **Privacy mode** (`SEND_SAMPLES=false`): only column names and types leave the machine.
+- **Trace log** (`logs/queries.jsonl`): the question, SQL, status, tokens and latency. Never the result rows.
+- **Provider as configuration**: any OpenAI-compatible endpoint (Groq by default, `gpt-oss-120b` / `gpt-oss-20b`).
+
+## Architecture
+
+```
+upload ─► profiling.py: clean headers · recover types · detect date orientation
+          · profile columns · discover joins
+                │
+                ▼
+          DuckDB (in-memory, one table per file/sheet, external file access off)
+                │
+question ─► engine.py: schema card + join hints + agreed definitions + last 3 Q→SQL
+                │
+                ▼
+          LLM (JSON mode) ─► {sql, chart, explanation, metrics_used}
+                │                    sql = null ─► "declined"
+                ▼
+          guard ─► execute ─► error? one repair retry with the verbatim error
+                │
+                ▼
+          result ─► chart picker ─► app.py: chart · table · editable SQL · trace
+```
+
+| Module | Owns | Never does |
 |---|---|---|
-| Mismatched keys | `orders.customer` holds `A-7342`, matching `clients.legacy_ref`; `clients.client_id` (`CL-0042`) is the obvious-looking decoy | Join hints |
-| Unguessable definitions | Revenue is gross *less discount*, completed only; the fiscal year starts 1 April | Agreed definitions |
-| Coded categories | Status is `CMP/RFD/CXL/PND`, region `AMER/EMEA/APAC`; questions say "cancelled", "Europe" | Sample values / privacy mode |
+| `src/profiling.py` | Reading, cleaning, type recovery, profiling, join discovery, the schema card | Talks to the model |
+| `src/engine.py` | Prompt, model call, SQL guard, execution, repair, chart choice, definitions, trace | Reads files, touches the UI |
+| `src/dashboard.py` | Rule-built KPI, trend and breakdown SQL, using the agreed definitions | Calls the model |
+| `src/app.py` | Streamlit UI: the four views, session state | Holds analysis logic |
+| `config/metrics.toml` | The customer's definitions | Needs code changes per customer |
 
-Building it found two bugs before any model ran, both deterministic and now tested: join
-discovery ignored foreign keys not *named* like keys (it found no joins at all on this data),
-and the schema card showed three sample values, so the fourth status code was invisible to
-every filter. Every checker is validated to pass the correct SQL and fail each trap's wrong
-answer.
+**Stack:** Python 3.12 · Streamlit · DuckDB · pandas · Plotly · OpenAI SDK against Groq.
+Chart colours use a colour-vision-deficiency-validated categorical palette in a fixed
+order. More detail in [`docs/architecture.md`](docs/architecture.md); every non-obvious
+decision is an ADR in [`docs/decisions/`](docs/decisions/).
 
-Results ([`docs/evals-hard.md`](docs/evals-hard.md), `gpt-oss-20b` via FreeLLMAPI, 17 questions):
+## Engineering Delta
 
-| Configuration | Correct | What it lost |
+What I built on top of "call the model":
+
+| Component | Problem it solves | Proof |
+|---|---|---|
+| Text-to-SQL over DuckDB | Hallucinated arithmetic; files too big for a prompt | Naive 10/20 vs 20/20; prompt flat at 1M rows |
+| Type recovery | `"$1,234.50"` is text, so sums fail | −4 answers without it |
+| Date-orientation detection | `03/05/2024` parses as March *and* May with no error | −4 answers without it, all confidently wrong |
+| Join discovery (containment) | Keys whose names don't match; Jaccard misses every FK | −3 answers in privacy mode without it |
+| Agreed definitions | "Revenue" means what the customer says, not what the model guesses | −5 answers on the hard suite without them |
+| Two-layer SQL safety | Generated SQL is untrusted input | Tests: writes, multi-statements, file reads all blocked |
+| Editable SQL | Users check the machine instead of trusting it | Every answer, plus the dashboard |
+| Eval harness with ablation | "Does it work?" answered with numbers | `docs/evals*.md` |
+
+## Evaluation
+
+`tests/evals.py` asks questions whose answers are **computed independently in pandas**,
+then switches off one component at a time. API quota refusals are recorded as *not run*,
+never as wrong.
+
+**Sample suite:** 20 questions on the demo data ([`docs/evals.md`](docs/evals.md), [`docs/evals-current.md`](docs/evals-current.md))
+
+| Configuration | gpt-oss-120b | gpt-oss-20b |
+|---|---|---|
+| Full system | **20 / 20** | **20 / 20** |
+| Without type recovery | 16 / 20 | 16 / 20 |
+| Without date detection | 16 / 20 | 16 / 20 |
+| Without join hints | 20 / 20 | 20 / 20 |
+| Without definitions | 20 / 20 | 19 / 20 |
+| Privacy mode | 20 / 20 | 20 / 20 |
+
+**Hard suite:** 17 questions on data built so each component is the only thing between
+the model and a wrong answer: mismatched keys with a decoy, revenue net of discount with an
+April fiscal year, and coded categories (`CXL`, `EMEA`) ([`docs/evals-hard.md`](docs/evals-hard.md)).
+
+| Configuration (gpt-oss-20b) | Correct | What it lost |
 |---|---|---|
 | Full system | **17 / 17** | |
-| Without join hints | 17 / 17 | nothing, because the model sees `A-7342` in both sample lists |
-| Without definitions | 12 / 17 | calendar-year and fiscal-year revenue, tier, Europe |
+| Without join hints | 17 / 17 | nothing: the model matches `A-7342` in both sample lists |
+| Without definitions | 12 / 17 | calendar- and fiscal-year revenue, tier, Europe |
 | Privacy mode | 13 / 17 | the coded filters: cancelled, pending, refunded, Europe |
-| Privacy mode, no join hints | 10 / 17 | the above plus tier, top company and one company's revenue (all need the client join) |
+| Privacy mode, no join hints | 10 / 17 | the above plus three questions needing the client join |
 
-So definitions pay for themselves outright. Join hints pay for themselves in privacy mode,
-where the model can no longer spot matching values. Privacy mode has a price: coded
-categories become guesswork. The router served some answers from Groq's copy of the model
-and some from NVIDIA's (the same open weights on different hosts); the report flags it.
+Building the hard suite found two real bugs before any model ran (join discovery ignored
+foreign keys not *named* like keys; three sample values hid the fourth status code). Both
+are fixed and tested.
 
-```bash
-python tests/evals.py --suite hard --provider freellmapi --list-models   # pick one model
-python tests/evals.py --suite hard --provider freellmapi --model <id>
-```
-
-The harness refuses auto-routed models for ablations: if a router answers "full" with one model
-and "no join hints" with another, the difference measures the router. Every answer records
-which model actually served it, and the report flags any run that mixed models.
-
-## Running it for a customer
-
-Three things a real deployment needs that a demo does not:
-
-**Agreed definitions.** `config/metrics.toml` holds the customer's meaning of terms like
-"revenue": the exact SQL expression and a plain-English description. The model is told to
-use them verbatim, and each answer names the definition it applied (*"Uses the agreed
-definition of **revenue**: net of refunds"*). A definition is only offered when its table
-and columns exist in the upload. The meaning of "revenue" becomes something the customer
-sets once, in a file, instead of something the model re-decides every question.
-Measured: 20/20 with or without the file on the sample data, because the model's own
-default (exclude refunds) happens to match this definition. Its value is control, not
-accuracy here — it would show up in the evals the day a customer's definition differs from
-the model's instinct. See [ADR 0007](docs/decisions/0007-business-definitions-as-configuration.md).
-
-**Privacy mode.** `SEND_SAMPLES=false` strips sample values from the schema card, so
-only column names and types leave the machine. Measured cost on the sample data: **none**
-(20/20 — [`docs/evals.md`](docs/evals.md)), because the category values here are spelled the
-obvious way. On data with codes the model can't guess (`'CMP'` for completed) it would cost
-accuracy; the eval is how you'd find out for a given customer before switching it on.
-
-**A trace of every question.** One JSONL line per question in `logs/queries.jsonl`: the
-SQL that ran, status, row count, definitions used, tokens and latency — never the result
-rows. A "Recent queries" panel shows it in the app. When a customer says yesterday's total
-was wrong, you read the SQL that produced it instead of guessing.
-
-## Verifying the answers
+**Tests**
 
 ```bash
-python tests/test_engine.py     # 18 assertions, no API key: guard, coercion, joins, charts,
-                                #   repair, bad files, definitions, privacy, trace, eval harness
-python tests/test_live.py       # 5 assertions against the real model (skips without a key)
-python tests/ground_truth.py    # the demo answers, recomputed in pandas via a different path
-python tests/evals.py           # the scored ablation study -> docs/evals.md (~30 min on free tier)
-```
-
-`ground_truth.py` exists so the demo can be checked rather than trusted. It prints two
-columns, because **"revenue" is not one number**: the sample data contains 62 refunded
-orders. `config/metrics.toml` defines revenue as net of refunds, so that is what the app
-returns and what the table below shows; gross figures are in the script.
-
-| Question | Expected (net of refunds) | Gross |
-|---|---|---|
-| What's the total revenue? | $1,962,664.00 | $2,109,620.72 |
-| Average order value by region | North $2,481.03 · South $2,437.13 · East $2,221.77 · West $2,196.96 | 2,497.39 / 2,389.29 / 2,234.18 / 2,228.26 |
-| Revenue by month in 2024 | Jan $63,622.72 · Feb $73,209.29 · Mar $108,916.78 | 66,805.26 / 78,527.01 / 112,328.91 |
-| Top 5 product categories | Docks $596,094.98, Monitors, Laptops, Headsets, Keyboards | Docks $630,789.81 (Laptops and Monitors swap) |
-| Compare North vs South | North $503,649.95 · South $599,533.05 | 566,907.69 / 621,216.24 |
-| Customers with >3 orders | 108 | 110 |
-| What's our headcount? | declines — no employee data in these files | — |
-
-All six verified matching on a live run. That the gross and net answers differ — and that
-the difference is *visible* in the SQL rather than hidden in a number — is the whole
-argument for this design.
-
-## Does it actually scale?
-
-The design claim is that the prompt doesn't grow with the data. Measured, not asserted:
-
-```bash
+python tests/test_engine.py     # 22 tests, no API key (runs in CI on every push)
+python tests/test_live.py       # 5 tests against the real model
+python tests/ground_truth.py    # demo answers recomputed in pandas via a different path
 python tests/benchmark.py 1000000
+python tests/evals.py           # sample suite;  --suite hard for the hard one
 ```
 
-| | 1,000,000 rows (55 MB) |
+| Demo question | Expected (net of refunds) |
 |---|---|
-| Ingest, clean, type-recover, profile | **~9s** |
-| Query (total / trend / group-by) | **0.00–0.01s** |
-| Prompt sent to the model | **564 chars, ~140 tokens** |
-| The same data as rows in a prompt | ~13,600,000 tokens — **96,784x larger**, and past every context window |
+| Total revenue | $1,962,664.00 (gross $2,109,620.72) |
+| Average order value by region | North $2,481.03 · South $2,437.13 · East $2,221.77 · West $2,196.96 |
+| Top product category | Docks, $596,094.98 |
+| Customers with more than 3 orders | 108 |
+| What's our headcount? | declines: no employee data |
 
-The schema card is the same 564 characters at 1,000,000 rows as at 900. Row count changes
-the answer, never the prompt. The rows-in-the-prompt approach would need a prompt about a
-hundred times larger than this model's 131k-token context window. It cannot even run the
-900-row sample: on Groq's free tier the request is rejected before the model sees it
-(`413 Request too large`).
+At 1,000,000 rows, ingest takes about 9s, queries take 0.01s, and the prompt stays 564
+characters. The same rows pasted into a prompt would be about 13.6M tokens.
 
-## Sample data
+## Security
 
-`data/samples/` holds three deliberately messy related files: `sales.csv` (900 orders,
-money as `"$1,234.50"`, three date formats in one column), `customers.xlsx` (120
-customers, spaces in headers), `products.csv` (20 SKUs). They join
-`sales.customer_id → customers.id` and `sales.sku → products.sku`.
+- **Generated SQL is untrusted input.** It is checked twice:
+  1. `guard()` strips comments and allows a single `SELECT`/`WITH` statement only. It blocks DDL/DML, `ATTACH`, `COPY`, `INSTALL`, `PRAGMA`, `read_csv`, `glob`, `getenv` and similar, and caps results at 5,000 rows.
+  2. The DuckDB connection runs with `enable_external_access=false`, so `read_csv('/etc/passwd')` fails at the engine even if the regex were bypassed.
+- **Data exposure is explicit.** The model gets the schema card only: names, types, null rates, three sample values or the full list for small category columns. Privacy mode removes the values.
+- **The trace log holds questions and SQL, never result rows.** It is gitignored.
+- **Secrets stay local.** Keys live in `.env` (gitignored), and org ids are redacted from stored eval errors.
 
-## Why it is built this way
+## Known Limitations
 
-The decisions that would otherwise look arbitrary are recorded in
-[`docs/decisions/`](docs/decisions/), Nygard-format, one file each:
+- Sample values reach the model provider unless privacy mode is on, and privacy mode costs accuracy on coded categories (13/17 on the hard suite).
+- Definitions are a prompt instruction, not compiled SQL. The model can ignore one; the evals catch it when it does.
+- Single session, in-memory, no auth, no persistence.
+- Throughput is bounded by the API. The free tier allows 8,000 tokens a minute, about 5 questions a minute for the whole app.
+- Only questions SQL can express: no fuzzy matching and no "why did this happen".
+- Tables with more than 200 columns would need a trimmed schema card. Excel formulas are read as cached values. Uploads are capped at 500 MB.
+- The evals are one run per question on synthetic data, so a one-question gap is within noise.
 
-| | |
-|---|---|
-| [0002](docs/decisions/0002-text-to-sql-over-rows-in-prompt.md) | Generated SQL instead of rows in the prompt, and what that costs |
-| [0003](docs/decisions/0003-containment-not-jaccard-for-join-keys.md) | Why Jaccard is the instinctive scoring choice and the wrong one |
-| [0004](docs/decisions/0004-detect-date-orientation.md) | The date bug where both readings succeed on 100% of rows |
-| [0005](docs/decisions/0005-two-layer-sql-safety.md) | Treating generated SQL as untrusted input, in two layers |
-| [0006](docs/decisions/0006-live-tests-for-prompt-regressions.md) | Why a stubbed model proved nothing about the prompt |
-| [0007](docs/decisions/0007-business-definitions-as-configuration.md) | Why "revenue" is the customer's decision, not the model's |
+## Roadmap
 
-[`docs/architecture.md`](docs/architecture.md) covers module boundaries and the four
-critical paths.
-
-## Limits
-
-In-memory and single-session — nothing persists across restarts, and there's no auth, so
-run it locally or behind one. On Groq's free tier the whole app shares 8,000 tokens a
-minute; at ~1,500 tokens a question that is about five questions a minute across all
-users, which is the real concurrency ceiling. Uploads are capped at 500MB by Streamlit (DuckDB itself
-would handle far more). Excel formulas are read as their cached values.
+1. **An eval set built with the customer, on their data.** It's the only honest answer to "does it work on ours?"
+2. **Compile definitions into SQL** (a small semantic layer) instead of asking the model to copy them.
+3. **A verification pass** that checks the generated SQL answers the question actually asked.
+4. **Persistence, auth, saved dashboards and a paid API tier.** The rate limit is the first wall a second user hits.
+5. **Warehouse connectors** (Postgres, BigQuery, Snowflake) alongside file upload.

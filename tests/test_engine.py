@@ -402,8 +402,32 @@ def test_eval_harness_waits_out_a_cooldown_but_not_a_daily_quota():
         evals._quota_exhausted = False
 
 
+def test_dashboard_uses_the_agreed_definition_and_joins_across_files():
+    import dashboard
+
+    con = engine.connect()
+    tables, _ = profiling.load_files(sorted(SAMPLES.glob("*.*")), con)
+    joins = profiling.discover_joins(con, tables)
+    metrics = engine.load_metrics(ROOT / "config" / "metrics.toml", tables)
+    sales = dashboard.fact_tables(tables, metrics)[0]
+    assert sales.name == "sales", "the table with a defined metric leads"
+
+    revenue = next(m for m in dashboard.measures(sales, metrics) if m.label == "revenue")
+    total = engine.run_sql(con, dashboard.kpi_sql(sales, revenue))["revenue"].iloc[0]
+    by_region = next(d for d in dashboard.dimensions(sales, tables, joins) if d.label == "region")
+    assert by_region.on, "region lives in customers, so it must come through a join"
+    split = engine.run_sql(con, dashboard.breakdown_sql(sales, revenue, by_region))
+    assert len(split) == 4 and abs(split["revenue"].sum() - total) < 0.01
+
+    raw = pd.read_csv(SAMPLES / "sales.csv")
+    amount = raw["Amount"].astype(str).str.replace(r"[$,\s]", "", regex=True).astype(float)
+    assert abs(total - amount[raw["Status"] == "Completed"].sum()) < 0.01, "net, not gross"
+    assert dashboard.compact(1_962_345, money=True) == "$1.96M"
+    assert dashboard.compact(12.5) == "12.50" and dashboard.compact(None) == "—"
+
+
 if __name__ == "__main__":
-    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    tests =[v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
     for t in tests:
         try:
