@@ -106,7 +106,9 @@ def money_column_config(df: pd.DataFrame) -> dict:
     config = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]) and _money(col):
-            config[col] = st.column_config.NumberColumn(col, format="$%.2f")
+            # "dollar" is locale-aware and gives "$1,234.57"; a printf "$%.2f"
+            # drops the thousands separator and disagrees with the chart labels.
+            config[col] = st.column_config.NumberColumn(col, format="dollar")
     return config
 
 
@@ -193,6 +195,53 @@ def render_chart(df: pd.DataFrame, chart: dict):
         st.caption(note)
 
 
+_SPARK_LABEL = {"time": "over time", "histogram": "spread", "top": "top values"}
+
+
+def render_overview(tables: list) -> None:
+    """What did I actually upload? One row per column, with its shape.
+
+    The point is the shape, not the statistic: where the numbers cluster, whether
+    the dates have a hole in them, which categories dominate. It is also the
+    fastest way to catch a file that was read wrong before asking it anything.
+    """
+    for table in tables:
+        dates = [c for c in table.columns if c.dtype == "DATE" and c.span]
+        head = f"**{table.name}** · {table.rows:,} rows · {len(table.columns)} columns"
+        if dates:
+            head += f" · {dates[0].name} spans {dates[0].span}"
+        st.markdown(head)
+
+        rows = []
+        for c in table.columns:
+            summary = c.span or f"{c.distinct:,} distinct"
+            if c.nulls_pct:
+                summary += f"  ·  {c.nulls_pct:g}% empty"
+            rows.append({
+                "column": c.name,
+                "type": c.dtype,
+                "shape": c.spark or [],
+                "": _SPARK_LABEL.get(c.spark_kind, ""),
+                "range": summary,
+            })
+        st.dataframe(
+            pd.DataFrame(rows),
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "column": st.column_config.TextColumn(width="small"),
+                "type": st.column_config.TextColumn(width="small"),
+                "shape": st.column_config.BarChartColumn(y_min=0, width="medium"),
+                "": st.column_config.TextColumn(width="small"),
+                "range": st.column_config.TextColumn("range / values", width="medium"),
+            },
+        )
+        if table.notes:
+            cleaned = [n for n in table.notes if "renamed" not in n]
+            if cleaned:
+                st.caption("Cleaned on import: " + "; ".join(cleaned))
+
+
 def render_answer(ss, idx: int, answer: engine.Answer):
     if answer.error:
         st.error(answer.error)
@@ -277,25 +326,14 @@ with st.sidebar:
     for problem in ss.problems:
         st.warning(problem, icon="⚠️")
 
-    for table in ss.tables:
-        with st.expander(f"{table.name} · {table.rows:,} rows"):
-            st.dataframe(
-                pd.DataFrame(
-                    [
-                        {"column": c.name, "type": c.dtype, "nulls": f"{c.nulls_pct}%"}
-                        for c in table.columns
-                    ]
-                ),
-                hide_index=True,
-                use_container_width=True,
-            )
-            if table.notes:
-                st.caption("**Cleaned on import**\n\n" + "\n".join(f"- {n}" for n in table.notes))
-
-    if ss.joins:
-        st.subheader("Detected joins")
-        for j in ss.joins[:8]:
-            st.caption(f"`{j['left']}` = `{j['right']}` · {int(j['overlap'] * 100)}% overlap")
+    # The detail lives in the main overview now -- two places showing the same
+    # schema is worse than one. This is just a receipt for what loaded.
+    if ss.tables:
+        st.caption(
+            f"**{len(ss.tables)} table(s)**, "
+            f"{sum(t.rows for t in ss.tables):,} rows total\n\n"
+            + "\n".join(f"- `{t.name}` · {t.rows:,} rows" for t in ss.tables)
+        )
 
 st.title("Ask your data a question")
 
@@ -308,6 +346,15 @@ st.caption(
     f"{len(ss.tables)} table(s) loaded · answers are computed by DuckDB from generated SQL, "
     "which you can inspect and edit under every result."
 )
+
+with st.expander("What's in these files", expanded=not ss.answers):
+    render_overview(ss.tables)
+    if ss.joins:
+        st.markdown("**Detected joins** — how these files connect:")
+        for j in ss.joins[:8]:
+            st.markdown(
+                f"- `{j['left']}` = `{j['right']}` · {int(j['overlap'] * 100)}% of values overlap"
+            )
 
 if not ss.suggestions and not ss.answers:
     try:

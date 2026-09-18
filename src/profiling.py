@@ -30,6 +30,9 @@ class Column:
     nulls_pct: float
     distinct: int
     samples: list
+    spark: list[float] | None = None   # shape of the column, for a mini chart
+    spark_kind: str = ""               # histogram | time | top | ""
+    span: str = ""                     # "Jan 2024 - Dec 2025", "0 - 8", ""
 
 
 @dataclass
@@ -247,18 +250,75 @@ def load_files(uploads, con) -> tuple[list[Table], list[str]]:
     return tables, problems
 
 
+SPARK_BINS = 14
+SPARK_SAMPLE = 50_000  # profiling a visual doesn't need every row of a huge file
+
+
+def _spark(s: pd.Series, dtype: str, distinct: int) -> tuple[list[float] | None, str]:
+    """A dozen-odd numbers describing the column's shape, for a mini chart.
+
+    Not statistics -- a picture. It answers "what did I actually upload?" at a
+    glance: where the numbers cluster, whether the dates have a gap, which
+    categories dominate.
+    """
+    clean = s.dropna()
+    if clean.empty or distinct < 2:
+        return None, ""
+    if len(clean) > SPARK_SAMPLE:
+        clean = clean.sample(SPARK_SAMPLE, random_state=0)
+
+    if dtype == "DATE":
+        counts = clean.dt.to_period("M").value_counts().sort_index()
+        return [float(v) for v in counts.tolist()], "time"
+
+    if dtype in ("INTEGER", "DECIMAL"):
+        if _KEYISH.search(str(s.name)):
+            return None, ""  # an id's distribution means nothing
+        try:
+            counts = pd.cut(clean, bins=SPARK_BINS, duplicates="drop").value_counts().sort_index()
+        except (ValueError, TypeError):
+            return None, ""
+        return [float(v) for v in counts.tolist()], "histogram"
+
+    # Frequencies only mean something when values repeat. 20 product names in 20
+    # rows would draw twenty bars of height one, which is noise wearing a chart.
+    if distinct <= 30 and distinct <= len(clean) / 2:
+        counts = clean.value_counts().head(SPARK_BINS)
+        return [float(v) for v in counts.tolist()], "top"
+    return None, ""
+
+
+def _span(s: pd.Series, dtype: str) -> str:
+    clean = s.dropna()
+    if clean.empty:
+        return ""
+    if dtype == "DATE":
+        return f"{clean.min():%b %Y} – {clean.max():%b %Y}"
+    if dtype in ("INTEGER", "DECIMAL"):
+        lo, hi = float(clean.min()), float(clean.max())
+        whole = dtype == "INTEGER" or abs(hi) >= 100
+        fmt = (lambda v: f"{v:,.0f}") if whole else (lambda v: f"{v:,.2f}")
+        return f"{fmt(lo)} – {fmt(hi)}"
+    return ""
+
+
 def profile(df: pd.DataFrame) -> list[Column]:
     cols = []
     for name in df.columns:
         s = df[name]
-        samples = s.dropna().unique()[:3].tolist()
+        dtype = _pretty_dtype(s)
+        distinct = int(s.nunique(dropna=True))
+        spark, kind = _spark(s, dtype, distinct)
         cols.append(
             Column(
                 name=str(name),
-                dtype=_pretty_dtype(s),
+                dtype=dtype,
                 nulls_pct=round(float(s.isna().mean()) * 100, 1),
-                distinct=int(s.nunique(dropna=True)),
-                samples=[_short(v) for v in samples],
+                distinct=distinct,
+                samples=[_short(v) for v in s.dropna().unique()[:3].tolist()],
+                spark=spark,
+                spark_kind=kind,
+                span=_span(s, dtype),
             )
         )
     return cols

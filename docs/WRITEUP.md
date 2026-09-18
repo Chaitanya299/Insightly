@@ -67,7 +67,7 @@ under every answer. It turns the app from something you trust into something you
 
 ## The number that makes the case
 
-A million rows of the same messy shape: 8.7s to ingest, clean and profile; 0.01s per query;
+A million rows of the same messy shape: about 9s to ingest, clean and profile; 0.01s per query;
 and a prompt of **561 characters** — the same 561 characters the 900-row sample produces.
 Putting those rows in a prompt instead would be roughly 13.6 million tokens, about
 97,000x more, and past every context window at any price. `tests/benchmark.py` reproduces it.

@@ -80,12 +80,23 @@ DuckDB connection itself runs with `enable_external_access=false`, so
 When a query errors, the engine feeds DuckDB's own error message back to the model for
 exactly one retry and labels the answer as repaired.
 
-**5. Survives bad files.** Each upload is isolated, so one unreadable file doesn't take
+**5. A picture of what you uploaded.** Before any question, every column is profiled into
+a mini chart: where the numbers cluster, whether the dates have a hole in them, which
+categories dominate, what share is empty. It is the fastest way to see that a file was
+read correctly — and in the sample data the `status` column's two bars show the refund
+proportion at a glance, which is exactly the thing that makes "total revenue" ambiguous.
+
+Columns that would produce a meaningless picture are left blank rather than filled: an
+`id` has no distribution worth drawing, and twenty product names in twenty rows would be
+twenty bars of height one. Profiling samples at 50,000 rows, so a 1M-row file costs the
+same as a small one.
+
+**6. Survives bad files.** Each upload is isolated, so one unreadable file doesn't take
 the session down with it — drop four good CSVs and one truncated export and you get four
 tables plus a plain-English note about the fifth ("malformed CSV (unclosed quote, or rows
 with differing column counts)"), not a traceback that loses all five.
 
-**6. Charts from result shape.** The chart type is decided from what came back — one
+**7. Charts from result shape.** The chart type is decided from what came back — one
 number is a metric, date + numeric is a line, categories are a bar. The model may suggest
 a chart, but it saw the schema, not the result, so its suggestion goes through the same
 checks as the fallback: a suggested bar chart of 108 named customers becomes a ranked
@@ -98,7 +109,7 @@ columns are detected by name and formatted as currency in the axis, the labels a
 table. The chart and the table under it share one ordering — the same numbers in two
 different orders on one screen reads as a bug.
 
-**7. Declining.** Asked something the data can't answer, the app says what's missing
+**8. Declining.** Asked something the data can't answer, the app says what's missing
 rather than inventing a column.
 
 ## Verifying the answers
@@ -139,7 +150,7 @@ python tests/benchmark.py 1000000
 
 | | 1,000,000 rows (55 MB) |
 |---|---|
-| Ingest, clean, type-recover, profile | **8.7s** |
+| Ingest, clean, type-recover, profile | **~9s** |
 | Query (total / trend / group-by) | **0.00–0.01s** |
 | Prompt sent to the model | **561 chars, ~140 tokens** |
 | The same data as rows in a prompt | ~13,600,000 tokens — **97,476x larger**, and past every context window |

@@ -20,8 +20,10 @@ graph LR
 - Multi-file upload, CSV and Excel, one table per sheet, per-file failure isolation
 - Cross-file analysis via containment-scored join discovery
 - Six demo questions verified against an independent pandas computation
-- Shape-based chart selection; editable, re-runnable SQL under every answer
-- 11 stubbed assertions, 5 live assertions, 1M-row benchmark (8.7s ingest, 561-char prompt)
+- Shape-based chart selection, sanity-checked against the model's suggestion
+- Per-column visual profiles (distribution, time coverage, top values) before any question
+- Editable, re-runnable SQL under every answer
+- 11 stubbed assertions, 5 live assertions, 1M-row benchmark (~9s ingest, 561-char prompt)
 
 ## In progress
 Nothing.
