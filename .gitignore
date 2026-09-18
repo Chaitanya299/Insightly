@@ -16,3 +16,7 @@ docs/INDEX.md
 # query trace log -- local, may contain customer questions
 logs/
 .code-review-graph/
+
+# Local-only notes, never published
+docs/WRITEUP.md
+docs/DEMO_SCRIPT.md
