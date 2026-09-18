@@ -23,7 +23,7 @@ try:
 except ImportError:
     pass
 
-st.set_page_config(page_title="Data Q&A", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Insightly", page_icon="📊", layout="wide")
 
 PALETTE = ["#4C78A8", "#F58518", "#54A24B", "#E45756", "#72B7B2", "#B279A2"]
 SAMPLES_SIG = ("samples",)
@@ -383,7 +383,8 @@ with st.sidebar:
 
     render_trace_panel()
 
-st.title("Ask your data a question")
+st.title("Insightly")
+st.caption("Ask your data a question")
 
 if not ss.tables:
     st.info("Upload one or more CSV/Excel files in the sidebar to start. "

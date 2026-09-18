@@ -1,4 +1,4 @@
-# Approach, decisions, and what I'd build next
+# Insightly: approach, decisions, and what I'd build next
 
 **The decision everything follows from.** The obvious build pastes the spreadsheet into the
 prompt and asks the model. It states figures it worked out in its head, can't hold a real

@@ -1,4 +1,6 @@
-# Ask Your Data
+# Insightly
+
+Ask your data a question.
 
 Upload CSV/Excel files, ask analytical questions in plain English, get answers you can verify.
 
