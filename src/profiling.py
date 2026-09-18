@@ -30,6 +30,7 @@ class Column:
     nulls_pct: float
     distinct: int
     samples: list
+    values: list[str] | None = None    # every value, for small category columns
     spark: list[float] | None = None   # shape of the column, for a mini chart
     spark_kind: str = ""               # histogram | time | top | ""
     span: str = ""                     # "Jan 2024 - Dec 2025", "0 - 8", ""
@@ -311,6 +312,22 @@ def _spark(s: pd.Series, dtype: str, distinct: int) -> tuple[list[float] | None,
     return None, ""
 
 
+CATEGORY_MAX = 12  # a column with this few distinct short values is a category
+
+
+def _category_values(s: pd.Series, dtype: str, distinct: int) -> list[str] | None:
+    """Every value of a small category column, not three samples of it.
+
+    A filter needs the exact spelling. With three samples of a four-code status
+    column the fourth code is invisible, and "how many are pending?" becomes a
+    guess at 'Pending' that silently matches nothing.
+    """
+    if dtype != "TEXT" or not 2 <= distinct <= CATEGORY_MAX:
+        return None
+    values = sorted(str(v) for v in s.dropna().unique())
+    return values if all(len(v) <= 24 for v in values) else None
+
+
 def _span(s: pd.Series, dtype: str) -> str:
     clean = s.dropna()
     if clean.empty:
@@ -339,6 +356,7 @@ def profile(df: pd.DataFrame) -> list[Column]:
                 nulls_pct=round(float(s.isna().mean()) * 100, 1),
                 distinct=distinct,
                 samples=[_short(v) for v in s.dropna().unique()[:3].tolist()],
+                values=_category_values(s, dtype, distinct),
                 spark=spark,
                 spark_kind=kind,
                 span=_span(s, dtype),
@@ -370,16 +388,14 @@ def _short(v, width: int = 24) -> str:
 # cross-file join discovery
 # --------------------------------------------------------------------------
 
-def _join_candidates(t: Table) -> list[Column]:
-    """Columns that could plausibly be keys: near-unique, or named like a key."""
-    out = []
-    for c in t.columns:
-        if c.dtype in ("DATE", "DECIMAL", "BOOLEAN") or c.distinct < 2:
-            continue
-        near_unique = t.rows and c.distinct / t.rows > 0.9
-        if near_unique or _KEYISH.search(c.name):
-            out.append(c)
-    return out
+def _is_key(t: Table, c: Column) -> bool:
+    """The 'one' side of a join: near-unique, or named like a key."""
+    near_unique = bool(t.rows) and c.distinct / t.rows > 0.9
+    return near_unique or bool(_KEYISH.search(c.name))
+
+
+def _linkable(c: Column) -> bool:
+    return c.dtype in ("TEXT", "INTEGER") and c.distinct >= 2
 
 
 def _name_score(a: str, b: str) -> float:
@@ -396,12 +412,25 @@ def discover_joins(con, tables: list[Table], min_overlap: float = 0.3) -> list[d
     Scored by *containment* (overlap / smaller side), not Jaccard: a foreign key
     is many-to-one, so 5000 orders against 200 customers has near-zero Jaccard
     but containment ~1.0. Jaccard would miss every real FK.
+
+    Only one side has to look like a key. A foreign key is usually named after
+    the thing it points at -- `customer`, `item`, `account` -- not `customer_id`,
+    and requiring both sides to be key-shaped missed exactly those. Text values
+    rarely overlap by coincidence, so text columns may join on values alone.
+    Integers do (a `quantity` of 1-8 sits inside any id range), so an integer
+    pair still needs both sides to look like keys.
     """
     joins = []
     for i, ta in enumerate(tables):
         for tb in tables[i + 1 :]:
-            for ca in _join_candidates(ta):
-                for cb in _join_candidates(tb):
+            for ca in ta.columns:
+                for cb in tb.columns:
+                    if not (_linkable(ca) and _linkable(cb)):
+                        continue
+                    a_key, b_key = _is_key(ta, ca), _is_key(tb, cb)
+                    both_text = ca.dtype == "TEXT" and cb.dtype == "TEXT"
+                    if not (a_key and b_key) and not (both_text and (a_key or b_key)):
+                        continue
                     score = _overlap(con, ta.name, ca.name, tb.name, cb.name)
                     if score is None:
                         continue
@@ -460,7 +489,9 @@ def schema_text(tables: list[Table], samples: bool = True) -> str:
             if c.nulls_pct:
                 bits.append(f"nulls={c.nulls_pct}%")
             line = f"  {c.name:<{width}}  {c.dtype:<8} {' '.join(bits):<22}"
-            if samples:
+            if samples and c.values:
+                line += f" values: {', '.join(c.values)}"
+            elif samples:
                 line += f" e.g. {', '.join(c.samples)}"
             out.append(line.rstrip())
         out.append("")

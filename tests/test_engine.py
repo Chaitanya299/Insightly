@@ -332,6 +332,41 @@ def test_eval_harness_never_scores_a_quota_refusal_as_a_wrong_answer():
     evals._quota_exhausted = False
 
 
+HARD = ROOT / "data" / "evals" / "hard"
+
+
+def test_join_discovery_finds_keys_whose_names_do_not_match():
+    """A foreign key is usually named after what it points at, not `x_id`."""
+    con = engine.connect()
+    tables, _ = profiling.load_files([HARD / "orders.csv", HARD / "clients.xlsx", HARD / "catalog.csv"], con)
+    pairs = {frozenset([j["left"], j["right"]]) for j in profiling.discover_joins(con, tables)}
+    assert frozenset(["orders.customer", "clients.legacy_ref"]) in pairs
+    assert frozenset(["orders.item", "catalog.ref_no"]) in pairs
+    # the obvious-looking decoy shares no values and must not be proposed
+    assert frozenset(["orders.customer", "clients.client_id"]) not in pairs
+
+    # and loosening the rule must not start joining small integers by coincidence
+    con = engine.connect()
+    tables, _ = profiling.load_files([SAMPLES / "sales.csv", SAMPLES / "customers.xlsx"], con)
+    joined_cols = {c for j in profiling.discover_joins(con, tables) for c in (j["left"], j["right"])}
+    assert "sales.quantity" not in joined_cols and "sales.discount" not in joined_cols
+
+
+def test_schema_card_lists_every_category_value():
+    """Three samples of a four-code column hide the fourth code from every filter."""
+    con = engine.connect()
+    tables, _ = profiling.load_files([HARD / "orders.csv"], con)
+    card = profiling.schema_text(tables)
+    status_line = next(line for line in card.splitlines() if line.strip().startswith("stat "))
+    for code in ["CMP", "RFD", "CXL", "PND"]:
+        assert code in status_line, code
+    # high-cardinality columns still get samples, not a dump of every value
+    customer_line = next(line for line in card.splitlines() if line.strip().startswith("customer "))
+    assert "e.g." in customer_line and "values:" not in customer_line
+    # and privacy mode still sends none of it
+    assert "CMP" not in profiling.schema_text(tables, samples=False)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

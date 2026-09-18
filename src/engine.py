@@ -20,7 +20,10 @@ from pathlib import Path
 import duckdb
 import pandas as pd
 
-MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+# Any OpenAI-compatible endpoint. Production defaults to Groq; the eval harness can
+# point elsewhere (e.g. a local FreeLLMAPI router) without touching this module.
+BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL = os.getenv("LLM_MODEL") or os.getenv("GROQ_MODEL") or "openai/gpt-oss-120b"
 MAX_ROWS = 5000
 
 SYSTEM = """You are a careful data analyst who answers questions by writing DuckDB SQL.
@@ -78,6 +81,7 @@ class Answer:
     metrics_used: list[str] = field(default_factory=list)
     tokens: int = 0          # prompt + completion, across the call and any repair
     latency_ms: int = 0
+    served_by: list[str] = field(default_factory=list)  # what actually answered
 
 
 # --------------------------------------------------------------------------
@@ -138,6 +142,7 @@ def log_answer(answer: "Answer", path) -> None:
         "tokens": answer.tokens,
         "latency_ms": answer.latency_ms,
         "model": MODEL,
+        "served_by": answer.served_by,
     }
     with open(path, "a") as fh:
         fh.write(json.dumps(record) + "\n")
@@ -288,15 +293,15 @@ def _series_col(df, cats, used) -> str | None:
 # the model
 # --------------------------------------------------------------------------
 
-def _client(max_retries: int = 2):
-    from groq import Groq
+def _client(max_retries: int = 2, base_url: str | None = None, api_key: str | None = None):
+    from openai import OpenAI
 
-    key = os.getenv("GROQ_API_KEY")
+    key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GROQ_API_KEY")
     if not key:
         raise RuntimeError("GROQ_API_KEY is not set -- copy .env.example to .env and add your key")
     # The SDK's retries honour the server's retry-after on a 429; the eval
     # harness raises this because the free tier allows 8k tokens a minute.
-    return Groq(api_key=key, max_retries=max_retries)
+    return OpenAI(api_key=key, base_url=base_url or BASE_URL, max_retries=max_retries)
 
 
 def _user_prompt(schema: str, joins: str, question: str,
@@ -313,16 +318,45 @@ def _user_prompt(schema: str, joins: str, question: str,
 
 
 def _complete(client, messages, meter: dict | None = None) -> dict:
-    resp = client.chat.completions.create(
+    kwargs = dict(
         model=MODEL,
         messages=messages,
         temperature=0,  # SQL generation is not a place for creativity
         response_format={"type": "json_object"},
     )
+    served = None
+    raw_api = getattr(client.chat.completions, "with_raw_response", None)
+    if raw_api is not None:
+        raw = raw_api.create(**kwargs)
+        resp = raw.parse()
+        # A router may answer with a different model than the one asked for;
+        # record who actually served it, or an eval cannot tell what it measured.
+        served = raw.headers.get("x-routed-via") or getattr(resp, "model", None)
+    else:  # test doubles
+        resp = client.chat.completions.create(**kwargs)
     usage = getattr(resp, "usage", None)
-    if meter is not None and usage is not None:
-        meter["tokens"] = meter.get("tokens", 0) + int(getattr(usage, "total_tokens", 0) or 0)
-    return json.loads(resp.choices[0].message.content)
+    if meter is not None:
+        if usage is not None:
+            meter["tokens"] = meter.get("tokens", 0) + int(getattr(usage, "total_tokens", 0) or 0)
+        if served:
+            meter.setdefault("served", []).append(str(served))
+    return parse_json(resp.choices[0].message.content)
+
+
+def parse_json(text: str | None) -> dict:
+    """JSON mode is a request, not a guarantee, once several providers are in play.
+
+    Some wrap the object in a ```json fence or a sentence; take the outermost
+    {...} rather than failing a question on formatting.
+    """
+    text = (text or "").strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end > start:
+            return json.loads(text[start : end + 1])
+        raise
 
 
 def ask(
@@ -365,6 +399,7 @@ def _ask(question, con, schema, joins, history, client, metrics) -> Answer:
         # only names that were actually offered -- the model may not invent one
         metrics_used=[m for m in (reply.get("metrics_used") or []) if m in known],
         tokens=meter.get("tokens", 0),
+        served_by=meter.get("served", []),
     )
     if not sql:
         # The model declined -- that is a correct outcome, not a failure.
@@ -378,6 +413,7 @@ def _ask(question, con, schema, joins, history, client, metrics) -> Answer:
     except Exception as exc:
         repaired = _repair(client, messages, sql, str(exc), con, meter)
         answer.tokens = meter.get("tokens", 0)
+        answer.served_by = meter.get("served", [])
         if repaired is None:
             answer.error = f"Query failed: {exc}"
             return answer

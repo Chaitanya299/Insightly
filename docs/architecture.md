@@ -55,6 +55,12 @@ All optional, all environment variables:
 | `METRICS_PATH` | `config/metrics.toml` | Business definitions; each offered only if its table and columns exist |
 | `TRACE_PATH` | `logs/queries.jsonl` | One line per question: SQL, status, tokens, latency. Never result rows |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Any open-weight model Groq serves |
+| `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` | Groq | Any OpenAI-compatible endpoint instead |
+
+The model client is the OpenAI SDK pointed at a base URL, so the provider is configuration.
+Production uses Groq; the eval harness can target a local FreeLLMAPI router
+(`--provider freellmapi`) and records which model served each answer, since a router may
+fail over between models.
 
 ## Where the safety lives
 
