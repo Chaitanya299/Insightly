@@ -45,7 +45,12 @@ def generate(path: Path, n: int) -> None:
 
 
 def main() -> None:
-    tmp = Path(tempfile.mkdtemp()) / "big_sales.csv"
+    # The generated file is ~55 MB per million rows; never leave it behind.
+    with tempfile.TemporaryDirectory() as d:
+        run(Path(d) / "big_sales.csv")
+
+
+def run(tmp: Path) -> None:
     print(f"generating {ROWS:,} rows…")
     generate(tmp, ROWS)
     size_mb = os.path.getsize(tmp) / 1e6

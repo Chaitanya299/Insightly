@@ -34,7 +34,8 @@ SAMPLES_SIG = ("samples",)
 
 def state():
     ss = st.session_state
-    ss.setdefault("con", engine.connect())
+    if "con" not in ss:  # not setdefault: its default is built on every rerun
+        ss.con = engine.connect()
     ss.setdefault("tables", [])
     ss.setdefault("problems", [])
     ss.setdefault("joins", [])
