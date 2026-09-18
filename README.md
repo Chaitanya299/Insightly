@@ -71,44 +71,54 @@ and the ADRs in [`docs/decisions/`](docs/decisions/).
 
 ## Engineering Delta
 
-What each component is worth. "Without it" is the score with that one component switched off.
+We tested each part by switching it off and counting how many questions went wrong.
 
-| Component | What it fixes | Without it |
+| Part | The problem it solves | Wrong answers without it |
 |---|---|---|
-| Text-to-SQL over DuckDB | Hallucinated arithmetic; files too big for a prompt | 10 / 20 (naive) |
-| Type recovery | `"$1,234.50"` stored as text | −4 answers |
-| Date-order detection | `03/05/2024` silently read as the wrong month | −4 answers |
-| Agreed definitions (`config/metrics.toml`) | "Revenue" means what the customer says | −5 answers (hard suite) |
-| Join discovery | Keys whose names don't match | −3 answers (hard suite, privacy mode) |
+| **The model writes a query; the database does the maths** | AI models get arithmetic wrong and can't read big files | Half the answers wrong (10 of 20) |
+| **Fixing number formats** | `"$1,234.50"` is read as text, so totals fail | 4 more wrong |
+| **Reading dates correctly** | `03/05/2024` could be 3 May or 5 March | 4 more wrong, with no error shown |
+| **Agreed definitions** | "Revenue" should mean what your company means | 5 more wrong |
+| **Finding links between files** | Matching columns can have different names in each file | 3 more wrong in privacy mode |
 
 ## Evaluation
 
-| Suite | Full system | Details |
-|---|---|---|
-| Sample data, 20 questions | **20 / 20** (gpt-oss-120b and 20b) | [`docs/evals.md`](docs/evals.md) |
-| Hard data, 17 questions (decoy keys, coded categories, fiscal year) | **17 / 17** (gpt-oss-20b) | [`docs/evals-hard.md`](docs/evals-hard.md) |
+We asked questions whose correct answers we worked out separately, then checked
+Insightly's answers against them.
+
+- **Everyday questions (20):** 20 of 20 correct.
+- **Tricky questions (17):** 17 of 17 correct. These use files built to cause mistakes:
+  confusing column names, company codes like `EMEA`, and a financial year starting in April.
+
+Details: [`docs/evals.md`](docs/evals.md) and [`docs/evals-hard.md`](docs/evals-hard.md).
+To check it yourself:
 
 ```bash
-python tests/test_engine.py   # 23 tests, no API key, runs in CI
-python tests/test_live.py     # 5 tests against the real model
-python tests/evals.py         # ablation study (--suite hard for the hard set)
+python tests/test_engine.py   # quick checks, no API key needed
+python tests/evals.py         # the full test (needs an API key)
 ```
 
 ## Security
 
-- Generated SQL is treated as untrusted. It must be a single `SELECT`/`WITH` statement: no writes, no file functions, and at most 5,000 rows back.
-- DuckDB runs with `enable_external_access=false`, so file reads are blocked even if the regex check is bypassed.
-- The model receives the schema card only. Privacy mode (`SEND_SAMPLES=false`) removes the sample values too.
-- The trace log holds questions and SQL, never result rows. `.env` is gitignored.
+- **Read-only.** Insightly can only *read* your data. Any query that tries to change or
+  delete anything, or open other files on your computer, is blocked, and blocked again by
+  the database itself.
+- **Your rows stay here.** The AI sees column names, types and a few example values,
+  never your full data. Turn on privacy mode (`SEND_SAMPLES=false`) to hide the examples too.
+- **The history log keeps questions and queries, never results.** API keys stay in a
+  local `.env` file that is never uploaded.
 
 ## Known Limitations
 
-- **Sample values reach the model provider** unless privacy mode is on, and privacy mode costs accuracy on coded categories (13/17 on the hard suite).
-- **Definitions are a prompt instruction, not compiled SQL.** The model can ignore one; the evals catch it.
-- **Single session, in-memory, no auth, no persistence.**
-- **Throughput is bounded by the API.** The free tier allows about 5 questions a minute across all users.
-- **SQL-shaped questions only.** No fuzzy matching and no "why did this happen".
-- **Small evals.** One run per question on synthetic data, so a one-question gap is noise.
+- **A few example values are sent to the AI** unless privacy mode is on, and privacy mode
+  makes questions about coded values (like `EMEA`) less accurate.
+- **The AI is told to use your definitions but isn't forced to.** Our tests catch it when
+  it doesn't.
+- **One person at a time.** No logins, and nothing is saved when you close it.
+- **About 5 questions a minute** on the free AI plan.
+- **It answers "how much" and "how many" questions,** not "why did this happen".
+- **The tests are small** (37 questions on sample data), so treat one-question
+  differences as noise.
 
 ## Roadmap
 
