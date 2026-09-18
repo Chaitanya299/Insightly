@@ -152,6 +152,32 @@ def test_chart_picker_reads_result_shape():
     assert picked["x"] == "region"
 
 
+def test_chart_picker_sanity_checks_the_models_suggestion():
+    """The model saw the schema, not the result, so its chart advice needs checking."""
+    wide = pd.DataFrame({
+        "customer_id": range(108),
+        "customer_name": [f"Customer {i:03d}" for i in range(108)],
+        "order_count": [15 - i // 10 for i in range(108)],
+    })
+    # 108 named bars is a smear -- keep the bar, cap it, and say so in the UI
+    picked = engine.pick_chart(wide, {"type": "bar", "x": "customer_name", "y": "order_count"})
+    assert picked["type"] == "bar" and picked["limit"] == engine.MAX_BARS
+
+    # an id is numeric but never a quantity: it must not become an axis
+    assert engine.pick_chart(pd.DataFrame({"customer_id": [1, 2, 3], "order_id": [9, 8, 7]})) is None
+    assert engine.pick_chart(wide)["y"] == "order_count"
+
+    # a pie past a handful of slices is a worse table; demote it rather than draw it
+    many = pd.DataFrame({"sku": [f"S-{i}" for i in range(20)], "n": list(range(20, 0, -1))})
+    assert engine.pick_chart(many, {"type": "pie", "x": "sku", "y": "n"})["type"] == "bar"
+    few = pd.DataFrame({"cat": list("ABCDE"), "n": [5, 4, 3, 2, 1]})
+    assert engine.pick_chart(few, {"type": "pie", "x": "cat", "y": "n"})["type"] == "pie"
+
+    # a suggestion whose y is not a measure is rejected
+    swapped = pd.DataFrame({"revenue": [5, 3, 1], "region": ["N", "S", "E"]})
+    assert engine.pick_chart(swapped, {"type": "bar", "x": "revenue", "y": "region"})["y"] == "revenue"
+
+
 def test_ask_end_to_end_with_stub_model():
     con = engine.connect()
     tables, _ = profiling.load_files([SAMPLES / "sales.csv", SAMPLES / "customers.xlsx"], con)

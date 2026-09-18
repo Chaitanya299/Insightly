@@ -86,8 +86,17 @@ tables plus a plain-English note about the fifth ("malformed CSV (unclosed quote
 with differing column counts)"), not a traceback that loses all five.
 
 **6. Charts from result shape.** The chart type is decided from what came back — one
-number is a metric, date + numeric is a line, few categories is a bar. The model's
-suggestion is used only if it names columns that actually exist in the result.
+number is a metric, date + numeric is a line, categories are a bar. The model may suggest
+a chart, but it saw the schema, not the result, so its suggestion goes through the same
+checks as the fallback: a suggested bar chart of 108 named customers becomes a ranked
+horizontal bar of the top 25 with a caption saying so; a 20-slice pie becomes a bar; and
+an `id` column never becomes an axis, because an id is a number but not a quantity.
+
+Bars are sorted by value, labelled with their values (a zero baseline is honest but makes
+$2,481 and $2,197 look identical), and flipped horizontal when the labels are long. Money
+columns are detected by name and formatted as currency in the axis, the labels and the
+table. The chart and the table under it share one ordering — the same numbers in two
+different orders on one screen reads as a bug.
 
 **7. Declining.** Asked something the data can't answer, the app says what's missing
 rather than inventing a column.

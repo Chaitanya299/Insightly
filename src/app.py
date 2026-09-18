@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -61,36 +62,135 @@ def rebuild(ss, uploads):
 # rendering
 # --------------------------------------------------------------------------
 
+_MONEY_COL = re.compile(
+    r"(amount|revenue|sales|cost|price|spend|profit|margin|total|value|aov|balance|fee)",
+    re.I,
+)
+
+
+def _money(col: str) -> bool:
+    return bool(_MONEY_COL.search(str(col)))
+
+
+def _num_format(col: str, series: pd.Series) -> str:
+    """A d3 format string. Money gets a currency prefix; small numbers keep decimals."""
+    if _money(col):
+        return "$,.0f" if series.abs().max() >= 100 else "$,.2f"
+    if pd.api.types.is_integer_dtype(series):
+        return ",.0f"
+    return ",.0f" if series.abs().max() >= 100 else ",.2f"
+
+
+def _pretty(col: str) -> str:
+    return str(col).replace("_", " ").strip().title()
+
+
+def ordered_for_display(df: pd.DataFrame, chart: dict | None) -> pd.DataFrame:
+    """One ordering for the chart and the table beneath it.
+
+    They show the same numbers, so showing them in two different orders on the
+    same screen (chart ranked by value, table alphabetical) reads as a bug.
+    """
+    if chart is None or df is None or df.empty:
+        return df
+    x, y = chart.get("x"), chart.get("y")
+    if chart["type"] not in {"bar", "pie"} or x not in df.columns or y not in df.columns:
+        return df
+    if pd.api.types.is_datetime64_any_dtype(df[x]):
+        return df  # time is already the right order; never re-rank it by value
+    return df.sort_values(y, ascending=False)
+
+
+def money_column_config(df: pd.DataFrame) -> dict:
+    """Format currency-looking columns in the table the way the chart formats them."""
+    config = {}
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]) and _money(col):
+            config[col] = st.column_config.NumberColumn(col, format="$%.2f")
+    return config
+
+
 def render_chart(df: pd.DataFrame, chart: dict):
     kind = chart["type"]
     if kind == "metric":
-        value = df[chart["y"]].iloc[0]
-        label = str(chart["y"]).replace("_", " ").title()
-        st.metric(label, f"{value:,.2f}" if isinstance(value, float) else f"{value:,}")
+        col = chart["y"]
+        value = df[col].iloc[0]
+        if pd.isna(value):
+            st.metric(_pretty(col), "—")
+            return
+        prefix = "$" if _money(col) else ""
+        text = f"{prefix}{value:,.2f}" if isinstance(value, float) else f"{prefix}{value:,}"
+        st.metric(_pretty(col), text)
         return
 
     x, y, series = chart.get("x"), chart.get("y"), chart.get("series")
+    if x not in df.columns or y not in df.columns:
+        return
+    data, note = df, None
+
+    # Too many categories to read: show the biggest ones and say so, rather than
+    # rendering a smear of 108 bars or silently dropping the chart.
+    limit = chart.get("limit")
+    if limit and len(data) > limit:
+        note = f"Showing the top {limit} of {len(data):,} by {_pretty(y).lower()}."
+        data = data.nlargest(limit, y)
+
+    x_is_date = pd.api.types.is_datetime64_any_dtype(data[x])
+
+    fmt = _num_format(y, data[y])
     common = dict(color_discrete_sequence=PALETTE)
-    if kind == "bar":
-        fig = px.bar(df, x=x, y=y, color=series, **common)
-    elif kind == "line":
-        fig = px.line(df, x=x, y=y, color=series, markers=len(df) <= 40, **common)
-    elif kind == "area":
-        fig = px.area(df, x=x, y=y, color=series, **common)
+
+    if kind == "pie":
+        fig = px.pie(data, names=x, values=y, hole=0.45, **common)
+        fig.update_traces(textposition="outside", texttemplate="%{label}<br>%{percent}")
+    elif kind == "bar":
+        # Long labels are unreadable rotated; horizontal bars read left to right.
+        longest = data[x].astype(str).str.len().max() if not x_is_date else 0
+        horizontal = not x_is_date and (longest > 14 or len(data) > 10)
+        if horizontal:
+            data = data.iloc[::-1]  # plotly draws the first row at the bottom
+            fig = px.bar(data, x=y, y=x, orientation="h", color=series, **common)
+            fig.update_xaxes(tickformat=fmt)
+        else:
+            fig = px.bar(data, x=x, y=y, color=series, **common)
+            fig.update_yaxes(tickformat=fmt)
+        # Values on the bars: a zero baseline is honest but flattens a narrow
+        # range (2,196 vs 2,481 look identical), so print the numbers.
+        if len(data) <= 14 and not series:
+            axis = "x" if horizontal else "y"
+            fig.update_traces(texttemplate="%{" + axis + ":" + fmt + "}",
+                              textposition="outside", cliponaxis=False)
+    elif kind in {"line", "area"}:
+        draw = px.area if kind == "area" else px.line
+        fig = draw(data, x=x, y=y, color=series,
+                   **({"markers": len(data) <= 40} if kind == "line" else {}), **common)
+        fig.update_yaxes(tickformat=fmt)
+        if x_is_date:
+            span = (data[x].max() - data[x].min()).days
+            fig.update_xaxes(tickformat="%b %Y" if span > 90 else "%d %b")
     elif kind == "scatter":
-        fig = px.scatter(df, x=x, y=y, color=series, **common)
-    elif kind == "pie":
-        fig = px.pie(df, names=x, values=y, **common)
+        fig = px.scatter(data, x=x, y=y, color=series, opacity=0.65, **common)
+        fig.update_yaxes(tickformat=fmt)
+        fig.update_xaxes(tickformat=_num_format(x, data[x]))
     else:
         return
+
     fig.update_layout(
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=380,
+        margin=dict(l=0, r=10, t=10, b=0),
+        height=380 if kind != "bar" else max(300, min(520, 60 + 26 * len(data))),
         xaxis_title=None,
         yaxis_title=None,
         legend_title_text="",
+        separators=".,",
+        hoverlabel=dict(bgcolor="white"),
+        plot_bgcolor="rgba(0,0,0,0)",
     )
+    if kind not in {"pie"}:
+        fig.update_yaxes(gridcolor="rgba(0,0,0,0.07)", zerolinecolor="rgba(0,0,0,0.15)")
+        fig.update_xaxes(gridcolor="rgba(0,0,0,0.07)")
     st.plotly_chart(fig, use_container_width=True)
+    if note:
+        st.caption(note)
 
 
 def render_answer(ss, idx: int, answer: engine.Answer):
@@ -102,10 +202,12 @@ def render_answer(ss, idx: int, answer: engine.Answer):
         st.caption("↻ the first query errored; it was repaired automatically and re-run")
 
     if answer.df is not None and not answer.df.empty:
+        shown = ordered_for_display(answer.df, answer.chart)
         if answer.chart:
-            render_chart(answer.df, answer.chart)
+            render_chart(shown, answer.chart)
         if not (answer.chart and answer.chart["type"] == "metric"):
-            st.dataframe(answer.df, use_container_width=True, hide_index=True)
+            st.dataframe(shown, use_container_width=True, hide_index=True,
+                         column_config=money_column_config(shown))
             if len(answer.df) >= engine.MAX_ROWS:
                 st.caption(f"showing the first {engine.MAX_ROWS:,} rows")
     elif answer.df is not None:

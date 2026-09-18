@@ -126,30 +126,63 @@ def run_sql(con, sql: str) -> pd.DataFrame:
 # charts -- chosen from the result's shape, not from the model's opinion
 # --------------------------------------------------------------------------
 
+MAX_BARS = 25       # beyond this a bar chart is a smear, so show the top N
+MAX_PIE = 6         # a pie with more slices than this is a worse table
+_ID_LIKE = re.compile(r"(^|_)(id|key|code|sku|no|num|ref)s?$", re.I)
+
+
 def pick_chart(df: pd.DataFrame | None, suggestion: dict | None = None) -> dict | None:
+    """Choose a chart from the result's shape.
+
+    The model may suggest one, but its suggestion is put through the same sanity
+    checks as the fallback rules -- it has seen the schema, not the result, so it
+    cannot know that its query returned 108 rows and a bar chart of 108 named
+    customers is unreadable.
+    """
     if df is None or df.empty:
         return None
     cols = list(df.columns)
     nums = [c for c in cols if pd.api.types.is_numeric_dtype(df[c])]
     dates = [c for c in cols if pd.api.types.is_datetime64_any_dtype(df[c])]
     cats = [c for c in cols if c not in nums and c not in dates]
+    # An id is a number but never a quantity: nothing is learned from plotting it.
+    measures = [c for c in nums if not _ID_LIKE.search(str(c))]
 
-    if len(df) == 1 and len(nums) == 1 and len(cols) <= 2:
-        return {"type": "metric", "y": nums[0]}
+    if len(df) == 1 and len(measures) == 1 and len(cols) <= 2:
+        return {"type": "metric", "y": measures[0]}
 
-    # Trust the model only if it named columns that actually came back.
-    if isinstance(suggestion, dict):
-        kind, x, y = suggestion.get("type"), suggestion.get("x"), suggestion.get("y")
-        if kind in {"bar", "line", "scatter", "pie", "area"} and x in cols and y in cols:
-            if pd.api.types.is_numeric_dtype(df[y]):
-                return {"type": kind, "x": x, "y": y, "series": _series_col(df, cats, x)}
+    return _from_suggestion(df, suggestion, cols, measures, cats) or _from_shape(
+        df, measures, dates, cats
+    )
 
-    if dates and nums:
-        return {"type": "line", "x": dates[0], "y": nums[0], "series": _series_col(df, cats, None)}
-    if cats and nums and len(df) <= 25:
-        return {"type": "bar", "x": cats[0], "y": nums[0], "series": None}
-    if len(nums) >= 2 and len(df) > 20:
-        return {"type": "scatter", "x": nums[0], "y": nums[1], "series": None}
+
+def _from_suggestion(df, suggestion, cols, measures, cats) -> dict | None:
+    if not isinstance(suggestion, dict):
+        return None
+    kind, x, y = suggestion.get("type"), suggestion.get("x"), suggestion.get("y")
+    if kind not in {"bar", "line", "scatter", "pie", "area"}:
+        return None
+    if x not in cols or y not in cols or y not in measures:
+        return None
+    if kind == "pie" and len(df) > MAX_PIE:
+        kind = "bar"  # the intent was "compare parts"; a bar still says that
+    spec = {"type": kind, "x": x, "y": y, "series": _series_col(df, cats, x)}
+    if kind in {"bar", "pie"} and len(df) > MAX_BARS:
+        spec["limit"] = MAX_BARS
+    return spec
+
+
+def _from_shape(df, measures, dates, cats) -> dict | None:
+    if dates and measures:
+        return {"type": "line", "x": dates[0], "y": measures[0],
+                "series": _series_col(df, cats, None)}
+    if cats and measures:
+        spec = {"type": "bar", "x": cats[0], "y": measures[0], "series": None}
+        if len(df) > MAX_BARS:
+            spec["limit"] = MAX_BARS
+        return spec
+    if len(measures) >= 2 and len(df) > 20:
+        return {"type": "scatter", "x": measures[0], "y": measures[1], "series": None}
     return None
 
 
